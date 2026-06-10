@@ -1,12 +1,12 @@
 ---
 name: error-tracking
-description: Add Sentry v8 error tracking and performance monitoring to your project services. Use this skill when adding error handling, creating new controllers, instrumenting cron jobs, or tracking database performance. ALL ERRORS MUST BE CAPTURED TO SENTRY - no exceptions.
+description: Add Sentry v8 error tracking and performance monitoring to your services. Use this skill when adding error handling, creating new controllers, instrumenting cron jobs, or tracking database performance. ALL ERRORS MUST BE CAPTURED TO SENTRY - no exceptions.
 ---
 
-# your project Sentry Integration Skill
+# Sentry Integration Skill
 
 ## Purpose
-This skill enforces comprehensive Sentry error tracking and performance monitoring across all your project services following Sentry v8 patterns.
+This skill enforces comprehensive Sentry error tracking and performance monitoring across all services following Sentry v8 patterns.
 
 ## When to Use This Skill
 - Adding error handling to any code
@@ -22,15 +22,11 @@ This skill enforces comprehensive Sentry error tracking and performance monitori
 
 ## Current Status
 
-### Form Service ✅ Complete
+### Example: API Service ✅ Complete
 - Sentry v8 fully integrated
 - All workflow errors tracked
-- SystemActionQueueProcessor instrumented
+- Background job processors instrumented
 - Test endpoints available
-
-### Email Service 🟡 In Progress
-- Phase 1-2 complete (6/22 tasks)
-- 189 ErrorLogger.log() calls remaining
 
 ## Sentry Integration Patterns
 
@@ -180,7 +176,7 @@ import * as Sentry from '@sentry/node';
 Sentry.withScope((scope) => {
     // ALWAYS include these if available
     scope.setUser({ id: userId });
-    scope.setTag('service', 'form'); // or 'email', 'users', etc.
+    scope.setTag('service', 'api'); // your service name
     scope.setTag('environment', process.env.NODE_ENV);
 
     // Add operation-specific context
@@ -194,11 +190,11 @@ Sentry.withScope((scope) => {
 });
 ```
 
-## Service-Specific Integration
+## Service Integration Examples
 
-### Form Service
+### API Service (Example)
 
-**Location**: `./blog-api/src/instrument.ts`
+**Location**: `./api/src/instrument.ts`
 
 ```typescript
 import * as Sentry from '@sentry/node';
@@ -216,11 +212,11 @@ Sentry.init({
 ```
 
 **Key Helpers**:
-- `WorkflowSentryHelper` - Workflow-specific errors
+- Custom Sentry helpers for domain-specific errors
 - `DatabasePerformanceMonitor` - DB query tracking
 - `BaseController` - Controller error handling
 
-### Email Service
+### Notifications Service (Example)
 
 **Location**: `./notifications/src/instrument.ts`
 
@@ -240,7 +236,7 @@ Sentry.init({
 ```
 
 **Key Helpers**:
-- `EmailSentryHelper` - Email-specific errors
+- Service-specific Sentry helpers for domain errors
 - `BaseController` - Controller error handling
 
 ## Configuration (config.ini)
@@ -262,34 +258,20 @@ enableN1Detection = true
 
 ## Testing Sentry Integration
 
-### Form Service Test Endpoints
+### Example Test Endpoints
 
 ```bash
 # Test basic error capture
-curl http://localhost:3002/blog-api/api/sentry/test-error
-
-# Test workflow error
-curl http://localhost:3002/blog-api/api/sentry/test-workflow-error
-
-# Test database performance
-curl http://localhost:3002/blog-api/api/sentry/test-database-performance
-
-# Test error boundary
-curl http://localhost:3002/blog-api/api/sentry/test-error-boundary
-```
-
-### Email Service Test Endpoints
-
-```bash
-# Test basic error capture
-curl http://localhost:3003/notifications/api/sentry/test-error
-
-# Test email-specific error
-curl http://localhost:3003/notifications/api/sentry/test-email-error
+curl http://localhost:3000/api/sentry/test-error
 
 # Test performance tracking
-curl http://localhost:3003/notifications/api/sentry/test-performance
+curl http://localhost:3000/api/sentry/test-performance
+
+# Test database performance
+curl http://localhost:3000/api/sentry/test-database-performance
 ```
+
+Create test endpoints in your services to verify Sentry integration works end-to-end.
 
 ## Performance Monitoring
 
@@ -344,32 +326,14 @@ When adding Sentry to new code:
 - [ ] Tested error handling paths
 - [ ] For cron jobs: instrument.ts imported first
 
-## Key Files
+## Key Files (Typical Structure)
 
-### Form Service
-- `/blog-api/src/instrument.ts` - Sentry initialization
-- `/blog-api/src/workflow/utils/sentryHelper.ts` - Workflow errors
-- `/blog-api/src/utils/databasePerformance.ts` - DB monitoring
-- `/blog-api/src/controllers/BaseController.ts` - Controller base
-
-### Email Service
-- `/notifications/src/instrument.ts` - Sentry initialization
-- `/notifications/src/utils/EmailSentryHelper.ts` - Email errors
-- `/notifications/src/controllers/BaseController.ts` - Controller base
+### Per Service
+- `src/instrument.ts` - Sentry initialization (imported first)
+- `src/utils/sentryHelper.ts` - Domain-specific error helpers
+- `src/utils/databasePerformance.ts` - DB monitoring
+- `src/controllers/BaseController.ts` - Controller base with Sentry
 
 ### Configuration
-- `/blog-api/config.ini` - Form service config
-- `/notifications/config.ini` - Email service config
-- `/sentry.ini` - Shared Sentry config
-
-## Documentation
-
-- Full implementation: `/dev/active/email-sentry-integration/`
-- Form service docs: `/blog-api/docs/sentry-integration.md`
-- Email service docs: `/notifications/docs/sentry-integration.md`
-
-## Related Skills
-
-- Use **database-verification** before database operations
-- Use **workflow-builder** for workflow error context
-- Use **database-scripts** for database error handling
+- `config.ini` or `.env` - Sentry DSN and settings
+- `sentry.ini` - Shared Sentry config (optional)

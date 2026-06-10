@@ -1,6 +1,10 @@
 {
-    "version": "1.0",
+    "version": "2.0",
     "description": "Skill activation triggers for Claude Code. Controls when skills automatically suggest or block actions.",
+    "settings": {
+        "skill_activation_mode": "disabled",
+        "conservativeness": "balanced"
+    },
     "skills": {
         "skill-developer": {
             "type": "domain",
@@ -146,41 +150,6 @@
                     "@skip-validation"
                 ],
                 "envOverride": "SKIP_FRONTEND_GUIDELINES"
-            }
-        },
-        "route-tester": {
-            "type": "domain",
-            "enforcement": "suggest",
-            "priority": "high",
-            "description": "Testing authenticated API routes with JWT cookie-based auth",
-            "promptTriggers": {
-                "keywords": [
-                    "test route",
-                    "test endpoint",
-                    "test API",
-                    "route testing",
-                    "API testing",
-                    "authenticated route",
-                    "JWT testing",
-                    "cookie auth",
-                    "test with auth"
-                ],
-                "intentPatterns": [
-                    "(test|debug|verify).*?(route|endpoint|API)",
-                    "(how to|how do I).*?test.*?(route|endpoint|API)",
-                    "test.*?(authenticated|auth|JWT|cookie)"
-                ]
-            },
-            "fileTriggers": {
-                "pathPatterns": [
-                    "**/routes/**/*.ts",
-                    "**/test-*.js",
-                    "**/test-*.ts"
-                ],
-                "contentPatterns": [
-                    "router\\.(get|post|put|delete|patch)",
-                    "app\\.(get|post|put|delete|patch)"
-                ]
             }
         },
         "error-tracking": {

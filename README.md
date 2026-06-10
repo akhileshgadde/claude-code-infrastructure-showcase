@@ -22,46 +22,115 @@ Born from 6 months of real-world use managing a complex TypeScript microservices
 
 ---
 
-## Quick Start - Pick Your Path
+## Quick Start
+
+### Option A: Setup Wizard (Recommended)
+
+The wizard copies everything, installs dependencies, and configures your mode:
+
+```bash
+# 1. Clone this repo
+git clone https://github.com/anthropics/claude-code-infrastructure-showcase.git
+
+# 2. Run the setup wizard, pointing to YOUR project
+cd claude-code-infrastructure-showcase
+npx tsx setup.ts ~/my-project
+```
+
+The wizard will:
+- Copy `.claude/` (hooks, skills, agents, commands) into your project
+- Detect your tech stack (React, Express, Prisma, etc.)
+- Ask: Classic (regex-only) or AI-Enhanced mode?
+- If AI: which provider? Validates API key availability
+- Install hook dependencies and make scripts executable
+
+### Option B: Manual (3 Commands)
+
+```bash
+# 1. Clone this repo
+git clone https://github.com/anthropics/claude-code-infrastructure-showcase.git
+
+# 2. Copy .claude/ into YOUR project
+cp -r claude-code-infrastructure-showcase/.claude ~/my-project/.claude
+
+# 3. Install hook dependencies
+cd ~/my-project/.claude/hooks && npm install && chmod +x *.sh
+```
+
+### Enable AI-Powered Classification (Optional)
+
+The default mode uses regex/keyword matching (free, works offline). To enable AI:
+
+```bash
+# Get a free Gemini API key: https://aistudio.google.com/apikey
+# Add to your shell profile (~/.bashrc or ~/.zshrc):
+echo 'export GEMINI_API_KEY=your-key-here' >> ~/.bashrc
+source ~/.bashrc
+
+# Enable AI mode - edit .claude/skills/skill-rules.json and change:
+#   "skill_activation_mode": "disabled"  →  "skill_activation_mode": "fallback"
+```
+
+### Editor Setup (Optional)
+
+The repo includes a NeoVim configuration optimized for Claude Code's prompt editing mode (`Ctrl+E`):
+
+- **Relative line numbers** for easy jumping (`5j` = down 5 lines)
+- **Word-boundary wrapping** for long prompts
+- **System clipboard integration** (yank = Cmd+C)
+- **Space+w** to save and submit, **Space+q** to cancel
+
+The setup wizard can install this automatically, or manually:
+
+```bash
+mkdir -p ~/.config/nvim
+cp editor-config/init.lua ~/.config/nvim/init.lua
+cp editor-config/vimrc ~/.vimrc
+echo 'export EDITOR=nvim' >> ~/.bashrc && source ~/.bashrc
+```
+
+See [`editor-config/README.md`](editor-config/README.md) for full keybinding reference.
+
+### What You'll See
+
+After setup, when you type "create a React component" in Claude Code:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⛔ MANDATORY SKILL ACTIVATION REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You MUST activate these skills BEFORE any action:
+  → frontend-dev-guidelines
+
+⚠️ EDITS WILL BE BLOCKED until mandatory skills are activated.
+Your FIRST action must be: Skill tool calls.
+[via regex]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Skills auto-activate based on your prompts. No more forgetting to load them.
+
+---
+
+## Pick Your Path
 
 ### 🤖 Using Claude Code to Integrate?
 
 **Claude:** Read [`CLAUDE_INTEGRATION_GUIDE.md`](CLAUDE_INTEGRATION_GUIDE.md) for step-by-step integration instructions tailored for AI-assisted setup.
 
-### 🎯 I want skill auto-activation
+### 📚 Browse the Skills Catalog
 
-**The breakthrough feature:** Skills that actually activate when you need them.
-
-**What you need:**
-1. The skill-activation hooks (2 files)
-2. A skill or two relevant to your work
-3. 15 minutes
-
-**👉 [Setup Guide: .claude/hooks/README.md](.claude/hooks/README.md)**
-
-### 📚 I want to add ONE skill
-
-Browse the [skills catalog](.claude/skills/) and copy what you need.
-
-**Available:**
+**Available skills** ([full catalog](.claude/skills/)):
 - **backend-dev-guidelines** - Node.js/Express/TypeScript patterns
 - **frontend-dev-guidelines** - React/TypeScript/MUI v7 patterns
 - **skill-developer** - Meta-skill for creating skills
-- **route-tester** - Test authenticated API routes
 - **error-tracking** - Sentry integration patterns
 
-**👉 [Skills Guide: .claude/skills/README.md](.claude/skills/README.md)**
+### 🤖 Specialized Agents
 
-### 🤖 I want specialized agents
-
-10 production-tested agents for complex tasks:
-- Code architecture review
-- Refactoring assistance
-- Documentation generation
-- Error debugging
-- And more...
-
-**👉 [Agents Guide: .claude/agents/README.md](.claude/agents/README.md)**
+8 production-tested agents for complex tasks ([full list](.claude/agents/)):
+- Code architecture review, refactoring, documentation, error debugging, and more
 
 ---
 
@@ -78,6 +147,32 @@ Browse the [skills catalog](.claude/skills/) and copy what you need.
 - Works via `skill-rules.json` configuration
 
 **Result:** Skills activate when you need them, not when you remember them.
+
+### AI-Powered Classification (NEW in v2.0)
+
+Choose your activation mode:
+
+| Mode | How It Works | Cost | Offline |
+|------|-------------|------|---------|
+| **`disabled`** (default) | Regex/keyword matching only | Free | Yes |
+| **`fallback`** | AI first, regex on failure | Low | Graceful |
+| **`ai-only`** | Pure AI classification | Low | No |
+
+**Supported AI providers:**
+
+| Provider | Model | API Key | Free Tier |
+|----------|-------|---------|-----------|
+| Gemini | gemini-3-flash-preview | `GEMINI_API_KEY` | Yes (generous) |
+| OpenAI | gpt-4o-mini | `OPENAI_API_KEY` | No |
+| Anthropic | claude-haiku-4-5 | `ANTHROPIC_API_KEY` | No |
+| Ollama | llama3.2 (local) | None needed | Yes (local) |
+
+Auto-detection tries providers in order: Gemini > OpenAI > Anthropic > Ollama. Override with `SKILL_AI_PROVIDER=gemini`.
+
+**Conservativeness levels** control suggestion aggressiveness:
+- **`strict`** - Minimize false positives. Only suggest when clear intent.
+- **`balanced`** (default) - Standard behavior.
+- **`aggressive`** - Catch everything. Suggest liberally.
 
 ### Production-Tested Patterns
 
@@ -111,66 +206,72 @@ skill-name/
 
 ```
 .claude/
-├── skills/                 # 5 production skills
+├── skills/                 # 4 production skills
 │   ├── backend-dev-guidelines/  (12 resource files)
 │   ├── frontend-dev-guidelines/ (11 resource files)
 │   ├── skill-developer/         (7 resource files)
-│   ├── route-tester/
 │   ├── error-tracking/
 │   └── skill-rules.json    # Skill activation configuration
-├── hooks/                  # 6 hooks for automation
+├── hooks/                  # Hooks for automation
 │   ├── skill-activation-prompt.*  (ESSENTIAL)
+│   ├── skill-verification-guard.* (ESSENTIAL, v2.0)
+│   ├── skill-activation-tracker.* (ESSENTIAL, v2.0)
 │   ├── post-tool-use-tracker.sh   (ESSENTIAL)
 │   ├── tsc-check.sh        (optional, needs customization)
 │   └── trigger-build-resolver.sh  (optional)
-├── agents/                 # 10 specialized agents
+├── agents/                 # 8 specialized agents
 │   ├── code-architecture-reviewer.md
 │   ├── refactor-planner.md
 │   ├── frontend-error-fixer.md
-│   └── ... 7 more
+│   └── ... 5 more
 └── commands/               # 3 slash commands
     ├── dev-docs.md
     └── ...
 
 dev/
 └── active/                 # Dev docs pattern examples
-    └── public-infrastructure-repo/
+    └── showcase-ai-upgrade/
 ```
 
 ---
 
 ## Component Catalog
 
-### 🎨 Skills (5)
+### 🎨 Skills (4)
 
 | Skill | Lines | Purpose | Best For |
 |-------|-------|---------|----------|
 | [**skill-developer**](.claude/skills/skill-developer/) | 426 | Creating and managing skills | Meta-development |
 | [**backend-dev-guidelines**](.claude/skills/backend-dev-guidelines/) | 304 | Express/Prisma/Sentry patterns | Backend APIs |
 | [**frontend-dev-guidelines**](.claude/skills/frontend-dev-guidelines/) | 398 | React/MUI v7/TypeScript | React frontends |
-| [**route-tester**](.claude/skills/route-tester/) | 389 | Testing authenticated routes | API testing |
 | [**error-tracking**](.claude/skills/error-tracking/) | ~250 | Sentry integration | Error monitoring |
 
 **All skills follow the modular pattern** - main file + resource files for progressive disclosure.
 
 **👉 [How to integrate skills →](.claude/skills/README.md)**
 
-### 🪝 Hooks (6)
+### 🪝 Hooks (9)
 
 | Hook | Type | Essential? | Customization |
 |------|------|-----------|---------------|
 | skill-activation-prompt | UserPromptSubmit | ✅ YES | ✅ None needed |
-| post-tool-use-tracker | PostToolUse | ✅ YES | ✅ None needed |
+| skill-verification-guard | PreToolUse | ✅ YES (v2.0) | ✅ None needed |
+| skill-activation-tracker | PostToolUse (Skill) | ✅ YES (v2.0) | ✅ None needed |
+| post-tool-use-tracker | PostToolUse (Edit) | ✅ YES | ✅ None needed |
 | tsc-check | Stop | ⚠️ Optional | ⚠️ Heavy - monorepo only |
 | trigger-build-resolver | Stop | ⚠️ Optional | ⚠️ Heavy - monorepo only |
 | error-handling-reminder | Stop | ⚠️ Optional | ⚠️ Moderate |
 | stop-build-check-enhanced | Stop | ⚠️ Optional | ⚠️ Moderate |
 
-**Start with the two essential hooks** - they enable skill auto-activation and work out of the box.
+**New in v2.0:**
+- **skill-verification-guard** - PreToolUse hook that analyzes code being written and enforces mandatory skill activation (two-try blocking model)
+- **skill-activation-tracker** - Clears skills from mandatory_pending after they're activated via the Skill tool
+
+**Start with the essential hooks** - they enable skill auto-activation and work out of the box.
 
 **👉 [Hook setup guide →](.claude/hooks/README.md)**
 
-### 🤖 Agents (10)
+### 🤖 Agents (8)
 
 **Standalone - just copy and use!**
 
@@ -183,8 +284,6 @@ dev/
 | plan-reviewer | Review development plans |
 | refactor-planner | Create refactoring strategies |
 | web-research-specialist | Research technical issues online |
-| auth-route-tester | Test authenticated endpoints |
-| auth-route-debugger | Debug auth issues |
 | auto-error-resolver | Auto-fix TypeScript errors |
 
 **👉 [How agents work →](.claude/agents/README.md)**
@@ -238,15 +337,7 @@ dev/
 ## ⚠️ Important: What Won't Work As-Is
 
 ### settings.json
-The included `settings.json` is an **example only**:
-- Stop hooks reference specific monorepo structure
-- Service names (blog-api, etc.) are examples
-- MCP servers may not exist in your setup
-
-**To use it:**
-1. Extract ONLY UserPromptSubmit and PostToolUse hooks
-2. Customize or skip Stop hooks
-3. Update MCP server list for your setup
+The included `settings.json` works out of the box for the essential hooks (UserPromptSubmit, PreToolUse, PostToolUse). If you add optional Stop hooks (tsc-check, build-check), those need customization for your project structure.
 
 ### Blog Domain Examples
 Skills use generic blog examples (Post/Comment/User):
@@ -265,27 +356,66 @@ Some hooks expect specific structures:
 
 **Recommended approach:**
 
-### Phase 1: Skill Activation (15 min)
-1. Copy skill-activation-prompt hook
-2. Copy post-tool-use-tracker hook
-3. Update settings.json
-4. Install hook dependencies
+### Option A: Setup Wizard (Fastest)
 
-### Phase 2: Add First Skill (10 min)
+```bash
+npx tsx setup.ts
+```
+
+The wizard handles everything: tech detection, mode selection, provider config, dependency install.
+
+### Option B: Manual Setup
+
+#### Phase 1: Skill Activation (15 min)
+1. Copy all essential hooks (skill-activation-prompt, skill-verification-guard, skill-activation-tracker, post-tool-use-tracker)
+2. Update settings.json with hook registrations
+3. Install hook dependencies: `cd .claude/hooks && npm install`
+4. Make shell scripts executable: `chmod +x .claude/hooks/*.sh`
+
+#### Phase 2: Add First Skill (10 min)
 1. Pick ONE relevant skill
 2. Copy skill directory
 3. Create/update skill-rules.json
 4. Customize path patterns
 
-### Phase 3: Test & Iterate (5 min)
+#### Phase 3: Enable AI (Optional, 5 min)
+1. Edit `.claude/skills/skill-rules.json`
+2. Change `"skill_activation_mode"` to `"fallback"`
+3. Set your API key: `export GEMINI_API_KEY=your-key` in `~/.bashrc`
+4. Restart Claude Code
+
+#### Phase 4: Test & Iterate (5 min)
 1. Edit a file - skill should activate
 2. Ask a question - skill should be suggested
 3. Add more skills as needed
 
-### Phase 4: Optional Enhancements
+#### Phase 5: Optional Enhancements
 - Add agents you find useful
 - Add slash commands
 - Customize Stop hooks (advanced)
+- Tune conservativeness level
+
+## Environment Variables
+
+```bash
+# AI Provider (optional - only for AI mode)
+SKILL_AI_PROVIDER=gemini         # Force: gemini|openai|anthropic|ollama
+GEMINI_API_KEY=                  # Auto-detect Gemini
+OPENAI_API_KEY=                  # Auto-detect OpenAI
+ANTHROPIC_API_KEY=               # Auto-detect Anthropic
+OLLAMA_MODEL=llama3.2            # Default Ollama model
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Behavior
+SKILL_CONSERVATIVENESS=balanced  # strict|balanced|aggressive
+DEBUG_SKILLS=0                   # 1 for debug output
+
+# PreToolUse Guard
+PRETOOLUSE_SOFT_BLOCK=false      # true for soft-blocking
+SKIP_MANDATORY_SKILLS=false      # true to bypass enforcement
+```
+
+See [`.env.example`](.env.example) for full documentation.
 
 ---
 

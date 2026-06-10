@@ -262,7 +262,7 @@ export default router;
 
 ```typescript
 // repositories/UserRepository.ts
-import { PrismaService } from '@project-lifecycle-portal/database';
+import { PrismaService } from '@myapp/database';
 import type { User, Prisma } from '@prisma/client';
 
 export class UserRepository {

@@ -18,7 +18,7 @@ Complete guide to database access patterns using Prisma in backend microservices
 ### Basic Pattern
 
 ```typescript
-import { PrismaService } from '@project-lifecycle-portal/database';
+import { PrismaService } from '@myapp/database';
 
 // Always use PrismaService.main
 const users = await PrismaService.main.user.findMany();

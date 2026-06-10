@@ -114,33 +114,6 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 ---
 
-### route-tester
-**Purpose:** Testing authenticated API routes with JWT cookie auth
-
-**Files:** 1 main file (389 lines)
-
-**Covers:**
-- JWT cookie-based authentication testing
-- test-auth-route.js script patterns
-- cURL with cookie authentication
-- Debugging auth issues
-- Testing POST/PUT/DELETE operations
-
-**Use when:**
-- Testing API endpoints
-- Debugging authentication
-- Validating route functionality
-
-**Customization:** ⚠️ Requires JWT cookie auth setup
-
-**Ask first:** "Do you use JWT cookie-based authentication?"
-- If YES: Copy and customize service URLs
-- If NO: Skip or adapt for your auth method
-
-**[View Skill →](route-tester/)**
-
----
-
 ### error-tracking
 **Purpose:** Sentry error tracking and monitoring patterns
 

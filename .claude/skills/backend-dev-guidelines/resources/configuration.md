@@ -92,15 +92,15 @@ export interface UnifiedConfig {
         inactivity: string;
         internal: string;
     };
-    keycloak: {
-        realm: string;
-        client: string;
+    auth: {
+        provider: string;
+        clientId: string;
         baseUrl: string;
         secret: string;
     };
-    aws: {
+    cloud: {
         region: string;
-        emailQueueUrl: string;
+        queueUrl: string;
         accessKeyId: string;
         secretAccessKey: string;
     };
@@ -115,7 +115,7 @@ export interface UnifiedConfig {
 
 ### Implementation Pattern
 
-**File:** `/blog-api/src/config/unifiedConfig.ts`
+**File:** `src/config/unifiedConfig.ts`
 
 ```typescript
 import * as fs from 'fs';
@@ -131,7 +131,7 @@ export const config: UnifiedConfig = {
         port: parseInt(iniConfig.database?.port || process.env.DB_PORT || '3306'),
         username: iniConfig.database?.username || process.env.DB_USER || 'root',
         password: iniConfig.database?.password || process.env.DB_PASSWORD || '',
-        database: iniConfig.database?.database || process.env.DB_NAME || 'blog_dev',
+        database: iniConfig.database?.database || process.env.DB_NAME || 'myapp_dev',
     },
     server: {
         port: parseInt(iniConfig.server?.port || process.env.PORT || '3002'),
@@ -164,8 +164,8 @@ if (!config.tokens.jwt) {
 host = localhost
 port = 3306
 username = root
-password = password1
-database = blog_dev
+password = your-db-password
+database = myapp_dev
 
 [server]
 port = 3002
@@ -176,11 +176,11 @@ jwt = your-jwt-secret
 inactivity = 30m
 internal = internal-api-token
 
-[keycloak]
-realm = myapp
-client = myapp-client
+[auth]
+provider = keycloak
+clientId = myapp-client
 baseUrl = http://localhost:8080
-secret = keycloak-client-secret
+secret = your-client-secret
 
 [sentry]
 dsn = https://your-sentry-dsn
@@ -240,7 +240,7 @@ export const config: UnifiedConfig = {
 ### Find All process.env Usage
 
 ```bash
-grep -r "process.env" blog-api/src/ --include="*.ts" | wc -l
+grep -r "process.env" src/ --include="*.ts" | wc -l
 ```
 
 ### Migration Example
@@ -248,8 +248,8 @@ grep -r "process.env" blog-api/src/ --include="*.ts" | wc -l
 **Before:**
 ```typescript
 // Scattered throughout code
-const timeout = parseInt(process.env.OPENID_HTTP_TIMEOUT_MS || '15000');
-const keycloakUrl = process.env.KEYCLOAK_BASE_URL;
+const timeout = parseInt(process.env.AUTH_HTTP_TIMEOUT_MS || '15000');
+const authUrl = process.env.AUTH_BASE_URL;
 const jwtSecret = process.env.JWT_SECRET;
 ```
 
@@ -257,8 +257,8 @@ const jwtSecret = process.env.JWT_SECRET;
 ```typescript
 import { config } from './config/unifiedConfig';
 
-const timeout = config.keycloak.timeout;
-const keycloakUrl = config.keycloak.baseUrl;
+const timeout = config.auth.timeout;
+const authUrl = config.auth.baseUrl;
 const jwtSecret = config.tokens.jwt;
 ```
 

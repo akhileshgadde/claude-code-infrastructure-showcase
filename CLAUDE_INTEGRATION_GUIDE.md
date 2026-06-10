@@ -17,6 +17,125 @@ This repository is a **reference library** of Claude Code infrastructure compone
 
 ---
 
+## Setup Wizard (Fastest Path)
+
+For users who want the quickest setup:
+
+```bash
+npx tsx setup.ts
+```
+
+The wizard:
+1. Detects the project's tech stack (React, Express, Prisma, etc.)
+2. Asks: Classic (regex-only) or AI-Enhanced mode?
+3. If AI: Which provider? Validates API key / Ollama availability
+4. Configures conservativeness level
+5. Updates `skill-rules.json` with v2.0 settings
+6. Installs dependencies
+
+**After the wizard:** Users can fine-tune by editing `.claude/skills/skill-rules.json`.
+
+---
+
+## Choosing Classic vs AI-Enhanced Mode
+
+| | Classic (disabled) | AI-Enhanced (fallback) | AI-Only |
+|---|---|---|---|
+| **How it works** | Regex/keyword matching | AI first, regex fallback | Pure AI |
+| **Cost** | Free | ~$0.001/prompt | ~$0.001/prompt |
+| **Offline** | Yes | Graceful fallback | No |
+| **Accuracy** | Good for keywords | Better semantic match | Best accuracy |
+| **Setup** | Zero config | API key needed | API key needed |
+| **Default** | **Yes** | No | No |
+
+**Recommendation:** Start with Classic mode. If you find skills aren't activating when expected, switch to `fallback` mode with Gemini (free tier).
+
+---
+
+## AI Provider Setup
+
+### Gemini (Recommended - Free Tier)
+
+```bash
+# 1. Get free API key: https://aistudio.google.com/apikey
+# 2. Add to ~/.bashrc:
+export GEMINI_API_KEY=your-key-here
+# 3. Update skill-rules.json:
+#    "skill_activation_mode": "fallback"
+```
+
+### OpenAI
+
+```bash
+export OPENAI_API_KEY=your-key-here
+# Optional for Azure:
+export OPENAI_BASE_URL=https://your-endpoint.openai.azure.com
+```
+
+### Anthropic
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+### Ollama (Free, Local)
+
+```bash
+# 1. Install: https://ollama.ai
+# 2. Pull model:
+ollama pull llama3.2
+# 3. Start server:
+ollama serve
+# No API key needed!
+```
+
+### Provider Auto-Detection
+
+If no `SKILL_AI_PROVIDER` is set, detection tries in order:
+1. `GEMINI_API_KEY` present -> Gemini
+2. `OPENAI_API_KEY` present -> OpenAI
+3. `ANTHROPIC_API_KEY` present -> Anthropic
+4. Ollama ping (500ms timeout) -> Ollama
+5. No provider -> regex-only fallback
+
+Override with: `export SKILL_AI_PROVIDER=gemini`
+
+---
+
+## Conservativeness Tuning
+
+Controls how aggressively skills are suggested in AI mode:
+
+| Level | Description | Best For |
+|-------|-------------|----------|
+| **strict** | Only suggest when user explicitly states intent. Minimizes false positives. | Large skill sets, experienced users |
+| **balanced** | Standard behavior. Mandatory = direct work, Recommended = context mentions. | Most projects (default) |
+| **aggressive** | Suggest liberally. Catches tangential mentions. | New users, small skill sets |
+
+Set via environment: `export SKILL_CONSERVATIVENESS=strict`
+Or in `skill-rules.json`: `"settings": { "conservativeness": "strict" }`
+
+---
+
+## PreToolUse Guard
+
+The `skill-verification-guard` hook (new in v2.0) runs before Edit/Write/MultiEdit:
+
+1. **Mandatory enforcement:** If mandatory skills are pending (from UserPromptSubmit), blocks the edit until skills are activated. Uses "two-try" model:
+   - First edit: BLOCKED, mandatory_pending cleared
+   - Second edit: ALLOWED
+
+2. **AI-powered edit analysis:** Analyzes code being written to suggest relevant skills (if AI provider available)
+
+3. **Guardrail checks:** Matches file paths and content patterns from skill-rules.json
+
+**Configuration:**
+- `PRETOOLUSE_SOFT_BLOCK=true` - Block on AI suggestions (default: suggest only)
+- `SKIP_MANDATORY_SKILLS=true` - Bypass mandatory enforcement
+- `SKILL_GUARD_DEBUG=true` - Detailed debug logging
+
+---
+
 ## Tech Stack Compatibility Check
 
 **CRITICAL:** Before integrating a skill, verify the user's tech stack matches the skill requirements.
@@ -68,7 +187,6 @@ Which would you prefer?
 
 These work for ANY tech stack:
 - ✅ **skill-developer** - Meta-skill, no tech requirements
-- ✅ **route-tester** - Only requires JWT cookie auth (framework agnostic)
 - ✅ **error-tracking** - Sentry works with most stacks
 
 ---
@@ -199,13 +317,6 @@ cat $CLAUDE_PROJECT_DIR/.claude/skills/skill-rules.json | jq .
 - **Customize:** pathPatterns + all framework-specific examples
 - **Example paths:** `frontend/`, `client/`, `web/`, `apps/web/src/`
 - **Adaptation tip:** File organization and performance patterns transfer, component code doesn't
-
-#### route-tester
-- **Tech Requirements:** JWT cookie-based authentication (framework agnostic)
-- **Ask:** "Do you use JWT cookie-based authentication?"
-- **If NO:** "This skill is designed for JWT cookies. Want me to adapt it for [their auth type] or skip it?"
-- **Customize:** Service URLs, auth patterns
-- **Works with:** Any backend framework using JWT cookies
 
 #### error-tracking
 - **Tech Requirements:** Sentry (works with most backends)
@@ -510,11 +621,6 @@ sed -i 's|/root/git/.*PROJECT.*DIR|$CLAUDE_PROJECT_DIR|g' \\
 ```
 
 ### Agent-Specific Notes
-
-**auth-route-tester / auth-route-debugger:**
-- Requires JWT cookie-based authentication in user's project
-- Ask: "Do you use JWT cookies for auth?"
-- If NO: "These agents are for JWT cookie auth. Skip them or want me to adapt?"
 
 **frontend-error-fixer:**
 - May reference screenshot paths
@@ -836,7 +942,6 @@ Try editing a .vue file - the skill should activate.
 | **skill-developer** | None | ✅ None | Copy as-is |
 | **backend-dev-guidelines** | Express/Prisma/Node | ⚠️ Paths + tech check | "Use Express/Prisma?" "Where's backend?" |
 | **frontend-dev-guidelines** | React/MUI v7 | ⚠️⚠️ Paths + framework | "Use React/MUI v7?" "Where's frontend?" |
-| **route-tester** | JWT cookies | ⚠️ Auth + paths | "JWT cookie auth?" |
 | **error-tracking** | Sentry | ⚠️ Paths | "Use Sentry?" "Where's backend?" |
 | **skill-activation-prompt** | ✅ None | Copy as-is |
 | **post-tool-use-tracker** | ✅ None | Copy as-is |
@@ -849,9 +954,7 @@ Try editing a .vue file - the skill should activate.
 | Component | Skip If... |
 |-----------|-----------|
 | **tsc-check hooks** | Single-service project or different build setup |
-| **route-tester** | Not using JWT cookie authentication |
 | **frontend-dev-guidelines** | Not using React + MUI |
-| **auth agents** | Not using JWT cookie auth |
 
 ---
 

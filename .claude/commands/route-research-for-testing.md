@@ -24,14 +24,12 @@ Follow the numbered steps **exactly**:
    defined in `src/app.ts`.
 2. For each final route, output a JSON record with the path, method, expected
    request/response shapes, and valid + invalid payload examples.
-3. **Now call the `Task` tool** using:
+3. **Now test each route** using cURL or your project's test script:
 
-```json
-{
-    "tool": "Task",
-    "parameters": {
-        "description": "route smoke tests",
-        "prompt": "Run the auth-route-tester sub-agent on the JSON above."
-    }
-}
+```bash
+# For each route, test with appropriate method and payload
+curl -X GET http://localhost:3000/api/route-path
+curl -X POST -H "Content-Type: application/json" -d '{"key":"value"}' http://localhost:3000/api/route-path
 ```
+
+Report results for each route: status code, response shape, and any errors found.

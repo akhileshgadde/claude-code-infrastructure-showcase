@@ -79,7 +79,7 @@ describe('UserService', () => {
 ### Test with Real Database
 
 ```typescript
-import { PrismaService } from '@project-lifecycle-portal/database';
+import { PrismaService } from '@myapp/database';
 
 describe('UserService Integration', () => {
     let testUser: any;
@@ -114,7 +114,7 @@ describe('UserService Integration', () => {
 ### Mock PrismaService
 
 ```typescript
-jest.mock('@project-lifecycle-portal/database', () => ({
+jest.mock('@myapp/database', () => ({
     PrismaService: {
         main: {
             user: {
@@ -184,29 +184,30 @@ describe('PermissionService', () => {
 
 ## Testing Authenticated Routes
 
-### Using test-auth-route.js
+### Using cURL or a Test Script
 
 ```bash
-# Test authenticated endpoint
-node scripts/test-auth-route.js http://localhost:3002/form/api/users
+# Test authenticated endpoint with a token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/users
 
 # Test with POST data
-node scripts/test-auth-route.js http://localhost:3002/form/api/users POST '{"email":"test@test.com"}'
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com"}' \
+  http://localhost:3000/api/users
 ```
 
 ### Mock Authentication in Tests
 
 ```typescript
 // Mock auth middleware
-jest.mock('../middleware/SSOMiddleware', () => ({
-    SSOMiddlewareClient: {
-        verifyLoginStatus: (req, res, next) => {
-            res.locals.claims = {
-                sub: 'test-user-id',
-                preferred_username: 'testuser',
-            };
-            next();
-        },
+jest.mock('../middleware/authMiddleware', () => ({
+    authMiddleware: (req, res, next) => {
+        res.locals.user = {
+            id: 'test-user-id',
+            username: 'testuser',
+        };
+        next();
     },
 }));
 ```

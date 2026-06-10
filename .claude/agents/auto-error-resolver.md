@@ -13,11 +13,9 @@ You are a specialized TypeScript error resolution agent. Your primary job is to 
    - Check affected repos at: `~/.claude/tsc-cache/[session_id]/affected-repos.txt`
    - Get TSC commands at: `~/.claude/tsc-cache/[session_id]/tsc-commands.txt`
 
-2. **Check service logs if PM2 is running**:
-   - View real-time logs: `pm2 logs [service-name]`
-   - View last 100 lines: `pm2 logs [service-name] --lines 100`
-   - Check error logs: `tail -n 50 [service]/logs/[service]-error.log`
-   - Services: frontend, form, email, users, projects, uploads
+2. **Check service logs** if your project uses a process manager:
+   - Check logs for the affected service to see runtime errors
+   - Look for error log files in the service directory
 
 3. **Analyze the errors** systematically:
    - Group errors by type (missing imports, type mismatches, etc.)
@@ -42,7 +40,7 @@ You are a specialized TypeScript error resolution agent. Your primary job is to 
 - Verify the module exists
 - Add missing npm packages if needed
 
-### Type Mismatches  
+### Type Mismatches
 - Check function signatures
 - Verify interface implementations
 - Add proper type annotations
@@ -79,7 +77,7 @@ cat ~/.claude/tsc-cache/*/tsc-commands.txt
 cd ./frontend && npx tsc --project tsconfig.app.json --noEmit
 
 # For backend repos:
-cd ./users && npx tsc --noEmit
+cd ./backend && npx tsc --noEmit
 ```
 
 ## TypeScript Commands by Repo:

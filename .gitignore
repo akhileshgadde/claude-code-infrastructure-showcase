@@ -22,6 +22,15 @@ dist/
 build/
 *.tsbuildinfo
 
+# Claude Code local/session files
+.claude/settings.local.json
+.claude/hooks/state/
+.claude/hooks/skill-guard.log
+.claude/hooks/node_modules/
+.claude/hooks/data/
+.claude/tsc-cache/
+.claude/memory/
+
 # IDE
 .vscode/
 .idea/
@@ -32,6 +41,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # Testing
 coverage/
@@ -49,3 +59,11 @@ temp/
 # Prisma
 .env
 prisma/.env
+
+# Excluded from showcase distribution
+docs/
+dev/active/blog-platform-demo/
+dev/active/**/*.md
+
+# Local backup clone
+ccip/

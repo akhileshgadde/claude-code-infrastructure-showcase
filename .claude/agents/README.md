@@ -16,7 +16,7 @@ Agents are autonomous Claude instances that handle specific complex tasks. Unlik
 
 ---
 
-## Available Agents (10)
+## Available Agents (8)
 
 ### code-architecture-reviewer
 **Purpose:** Review code for architectural consistency and best practices
@@ -109,31 +109,6 @@ Agents are autonomous Claude instances that handle specific complex tasks. Unlik
 
 ---
 
-### auth-route-tester
-**Purpose:** Test authenticated API endpoints
-
-**When to use:**
-- Testing routes with JWT cookie auth
-- Validating endpoint functionality
-- Debugging authentication issues
-
-**Integration:** ⚠️ Requires JWT cookie-based auth
-
----
-
-### auth-route-debugger
-**Purpose:** Debug authentication issues
-
-**When to use:**
-- Auth failures
-- Token issues
-- Cookie problems
-- Permission errors
-
-**Integration:** ⚠️ Requires JWT cookie-based auth
-
----
-
 ### auto-error-resolver
 **Purpose:** Automatically fix TypeScript compilation errors
 
@@ -176,11 +151,6 @@ That's it! Agents work immediately.
 - Ask user: "Where should screenshots be saved?"
 - Update paths in agent file
 
-**auth-route-tester / auth-route-debugger:**
-- Require JWT cookie authentication
-- Update service URLs from examples
-- Customize for user's auth setup
-
 **auto-error-resolver:**
 - May have hardcoded project paths
 - Update to use `$CLAUDE_PROJECT_DIR` or relative paths
@@ -214,8 +184,6 @@ That's it! Agents work immediately.
 | plan-reviewer | Low | ✅ None | No |
 | refactor-planner | Medium | ✅ None | No |
 | web-research-specialist | Low | ✅ None | No |
-| auth-route-tester | Medium | ⚠️ Auth setup | JWT cookies |
-| auth-route-debugger | Medium | ⚠️ Auth setup | JWT cookies |
 | auto-error-resolver | Low | ⚠️ Paths | No |
 
 ---
@@ -231,7 +199,6 @@ That's it! Agents work immediately.
    grep "~/git/\|/root/" agent-name.md
    ```
 4. **Update paths if found** to `$CLAUDE_PROJECT_DIR` or `.`
-5. **For auth agents:** Ask if they use JWT cookie auth first
 
 **That's it!** Agents are the easiest components to integrate.
 

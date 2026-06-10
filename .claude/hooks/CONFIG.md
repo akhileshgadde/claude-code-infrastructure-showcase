@@ -32,20 +32,24 @@ Create or update `.claude/settings.json` in your project root:
         ]
       }
     ],
-    "Stop": [
+    "PreToolUse": [
       {
+        "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-prettier-formatter.sh"
-          },
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-verification-guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-build-check-enhanced.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/error-handling-reminder.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-tracker.sh"
           }
         ]
       }
@@ -175,7 +179,88 @@ if [[ $total_errors -ge 10 ]]; then  # Now requires 10+ errors
 fi
 ```
 
+## AI Provider Configuration (v2.0)
+
+### Activation Modes
+
+Set in `.claude/skills/skill-rules.json`:
+
+```json
+{
+    "settings": {
+        "skill_activation_mode": "disabled",
+        "conservativeness": "balanced"
+    }
+}
+```
+
+| Mode | Behavior |
+|------|----------|
+| `disabled` | Regex-only (default, v1.0 behavior) |
+| `fallback` | AI first, regex on failure |
+| `ai-only` | Pure AI, no fallback |
+
+### Provider Selection
+
+Auto-detected from environment, or force with `SKILL_AI_PROVIDER`:
+
+```bash
+export SKILL_AI_PROVIDER=gemini  # gemini|openai|anthropic|ollama
+```
+
+### Conservativeness
+
+Controls suggestion aggressiveness in AI mode:
+
+```bash
+export SKILL_CONSERVATIVENESS=balanced  # strict|balanced|aggressive
+```
+
+### PreToolUse Guard
+
+The `skill-verification-guard` hook analyzes code being edited:
+
+```bash
+# Soft-block: block first edit with suggestions, allow second
+export PRETOOLUSE_SOFT_BLOCK=false
+
+# Skip mandatory skill enforcement
+export SKIP_MANDATORY_SKILLS=false
+
+# Skip AI analysis in PreToolUse
+export SKIP_PRETOOLUSE_AI=false
+
+# Detailed debug logging
+export SKILL_GUARD_DEBUG=false
+```
+
+### Debug Mode
+
+```bash
+export DEBUG_SKILLS=1  # Show AI classification details in stderr
+```
+
 ## Environment Variables
+
+### AI Provider Variables
+
+```bash
+# Force specific provider
+SKILL_AI_PROVIDER=gemini|openai|anthropic|ollama
+
+# Provider API keys (auto-detection uses these)
+GEMINI_API_KEY=your-key
+OPENAI_API_KEY=your-key
+ANTHROPIC_API_KEY=your-key
+
+# OpenAI/Azure customization
+OPENAI_BASE_URL=https://your-endpoint.openai.azure.com
+OPENAI_MODEL=gpt-4o-mini
+
+# Ollama customization
+OLLAMA_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434
+```
 
 ### Global Environment Variables
 
@@ -444,5 +529,4 @@ fi
 ## See Also
 
 - [README.md](./README.md) - Hooks overview
-- [../../docs/HOOKS_SYSTEM.md](../../docs/HOOKS_SYSTEM.md) - Complete hooks reference
-- [../../docs/SKILLS_SYSTEM.md](../../docs/SKILLS_SYSTEM.md) - Skills integration
+- [../../README.md](../../README.md) - Project overview and quick start

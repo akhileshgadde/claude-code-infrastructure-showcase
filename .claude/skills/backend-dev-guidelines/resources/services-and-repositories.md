@@ -374,8 +374,8 @@ Repository: "Here's the Prisma query that does that"
 
 ```typescript
 // repositories/UserRepository.ts
-import { PrismaService } from '@project-lifecycle-portal/database';
-import type { User, Prisma } from '@project-lifecycle-portal/database';
+import { PrismaService } from '@myapp/database';
+import type { User, Prisma } from '@myapp/database';
 
 export class UserRepository {
     /**
