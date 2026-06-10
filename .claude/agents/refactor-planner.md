@@ -42,7 +42,7 @@ When creating your refactoring plan, you will:
 
 - **Start with a comprehensive analysis** of the current state, using code examples and specific file references
 - **Categorize issues** by severity (critical, major, minor) and type (structural, behavioral, naming)
-- **Propose solutions** that align with the project's existing patterns and conventions (check CLAUDE.md)
+- **Propose solutions** that align with the project's existing patterns and conventions (check CLAUDE.md if present)
 - **Structure the plan** in markdown format with clear sections:
   - Executive Summary
   - Current State Analysis
@@ -52,11 +52,11 @@ When creating your refactoring plan, you will:
   - Testing Strategy
   - Success Metrics
 
-- **Save the plan** in an appropriate location within the project structure, typically:
-  - `/documentation/refactoring/[feature-name]-refactor-plan.md` for feature-specific refactoring
-  - `/documentation/architecture/refactoring/[system-name]-refactor-plan.md` for system-wide changes
+- **Save the plan** in an appropriate location within the project structure, typically your project's documentation directory (e.g. `docs/refactoring/` or `documentation/refactoring/`):
+  - `[feature-name]-refactor-plan.md` for feature-specific refactoring
+  - `[system-name]-refactor-plan.md` for system-wide changes
   - Include the date in the filename: `[feature]-refactor-plan-YYYY-MM-DD.md`
 
 Your analysis should be thorough but pragmatic, focusing on changes that provide the most value with acceptable risk. Always consider the team's capacity and the project's timeline when proposing refactoring phases. Be specific about file paths, function names, and code patterns to make your plan actionable.
 
-Remember to check for any project-specific guidelines in CLAUDE.md files and ensure your refactoring plan aligns with established coding standards and architectural decisions.
+Remember to check for any project-specific guidelines in CLAUDE.md files (if present) and ensure your refactoring plan aligns with established coding standards and architectural decisions.

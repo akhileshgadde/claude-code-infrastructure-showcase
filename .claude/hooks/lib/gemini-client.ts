@@ -6,7 +6,7 @@ import type { RelevanceAssessment, VectorSearchResult } from './types.js';
 // Constants
 // ============================================================
 
-export const GEMINI_MODEL = 'gemini-3-flash-preview';
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
 export const EMBEDDING_MODEL = 'gemini-embedding-001';
 export const EMBEDDING_DIMENSIONS = 768;
 
@@ -36,7 +36,7 @@ export async function generateSearchTerms(
 
     const prompt = `Extract 3-5 search terms from this developer prompt that would help find relevant past sessions or documentation. Focus on:
 - Technical concepts (e.g., "workflow", "authentication", "Prisma")
-- Specific features or components (e.g., "DHS monthly report", "role assignment")
+- Specific features or components (e.g., "monthly report", "role assignment")
 - File names or patterns mentioned
 - Error types or debugging topics
 

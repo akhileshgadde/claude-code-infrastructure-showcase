@@ -7,7 +7,9 @@ description: Comprehensive backend development guide for Node.js/Express/TypeScr
 
 ## Purpose
 
-Establish consistency and best practices across backend microservices (blog-api, auth-service, notifications-service) using modern Node.js/Express/TypeScript patterns.
+Establish consistency and best practices across backend services using modern Node.js/Express/TypeScript patterns.
+
+Written for Node.js/Express/TypeScript with Prisma and Sentry. Different stack? Adapt the architectural principles - see CLAUDE_INTEGRATION_GUIDE.md in the repo root.
 
 ## When to Use This Skill
 

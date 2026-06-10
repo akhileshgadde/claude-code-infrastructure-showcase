@@ -275,27 +275,29 @@ export const myFeatureApi = {
 
 ## Route Format Rules (IMPORTANT)
 
+The paths below are an example of prefix-based microservice routing from the original production project, where a proxy maps each service to a path prefix. Substitute your own API paths - if your backend serves routes under `/api/`, use that prefix.
+
 ### Correct Format
 
 ```typescript
-// ✅ CORRECT - Direct service path
+// ✅ CORRECT - Path matches the proxy configuration (here: direct service prefixes)
 await apiClient.get('/blog/posts/123');
 await apiClient.post('/projects/create', data);
 await apiClient.put('/users/update/456', updates);
 await apiClient.get('/email/templates');
 
-// ❌ WRONG - Do NOT add /api/ prefix
-await apiClient.get('/api/blog/posts/123');  // WRONG!
-await apiClient.post('/api/projects/create', data); // WRONG!
+// ❌ WRONG - In this setup the proxy adds no /api/ prefix
+await apiClient.get('/api/blog/posts/123');  // WRONG here (fine if YOUR backend uses /api/)
+await apiClient.post('/api/projects/create', data); // WRONG here
 ```
 
-**Microservice Routing:**
+**Microservice Routing (example from the original project):**
 - Form service: `/blog/*`
 - Projects service: `/projects/*`
 - Email service: `/email/*`
 - Users service: `/users/*`
 
-**Why:** API routing is handled by proxy configuration, no `/api/` prefix needed.
+**Why:** In that architecture, API routing is handled by proxy configuration, so no `/api/` prefix is needed. The real rule: match your `apiClient` paths to your own routing setup.
 
 ---
 

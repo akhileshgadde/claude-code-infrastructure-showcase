@@ -1,14 +1,4 @@
 {
-    "permissions": {
-        "allow": [
-            "Edit:*",
-            "Write:*",
-            "MultiEdit:*",
-            "NotebookEdit:*",
-            "Bash:*"
-        ],
-        "defaultMode": "acceptEdits"
-    },
     "hooks": {
         "UserPromptSubmit": [
             {

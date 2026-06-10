@@ -24,13 +24,21 @@ Born from 6 months of real-world use managing a complex TypeScript microservices
 
 ## Quick Start
 
+### Requirements
+
+- **Node.js 18+** (20+ recommended) and npm
+- **macOS, Linux, or WSL2** - the hooks are bash scripts and won't run in plain cmd/PowerShell (Windows users: use WSL2)
+- **jq** - only needed if you enable the optional Stop hooks
+
+> Note: the first `npx tsx` run may ask to install tsx - say yes.
+
 ### Option A: Setup Wizard (Recommended)
 
 The wizard copies everything, installs dependencies, and configures your mode:
 
 ```bash
 # 1. Clone this repo
-git clone https://github.com/anthropics/claude-code-infrastructure-showcase.git
+git clone https://github.com/diet103/claude-code-infrastructure-showcase.git
 
 # 2. Run the setup wizard, pointing to YOUR project
 cd claude-code-infrastructure-showcase
@@ -48,7 +56,7 @@ The wizard will:
 
 ```bash
 # 1. Clone this repo
-git clone https://github.com/anthropics/claude-code-infrastructure-showcase.git
+git clone https://github.com/diet103/claude-code-infrastructure-showcase.git
 
 # 2. Copy .claude/ into YOUR project
 cp -r claude-code-infrastructure-showcase/.claude ~/my-project/.claude
@@ -193,7 +201,7 @@ Large skills hit context limits. The solution:
 skill-name/
   SKILL.md                  # <500 lines, high-level guide
   resources/
-    topic-1.md              # <500 lines each
+    topic-1.md              # aim for <500 lines each
     topic-2.md
     topic-3.md
 ```
@@ -207,16 +215,19 @@ skill-name/
 ```
 .claude/
 ├── skills/                 # 4 production skills
-│   ├── backend-dev-guidelines/  (12 resource files)
-│   ├── frontend-dev-guidelines/ (11 resource files)
-│   ├── skill-developer/         (7 resource files)
+│   ├── backend-dev-guidelines/  (11 resource files)
+│   ├── frontend-dev-guidelines/ (10 resource files)
+│   ├── skill-developer/         (6 resource files)
 │   ├── error-tracking/
 │   └── skill-rules.json    # Skill activation configuration
-├── hooks/                  # Hooks for automation
+├── hooks/                  # 9 hooks for automation
 │   ├── skill-activation-prompt.*  (ESSENTIAL)
 │   ├── skill-verification-guard.* (ESSENTIAL, v2.0)
 │   ├── skill-activation-tracker.* (ESSENTIAL, v2.0)
 │   ├── post-tool-use-tracker.sh   (ESSENTIAL)
+│   ├── session-doc-updater.*      (optional, installed by default)
+│   ├── error-handling-reminder.*  (optional)
+│   ├── stop-build-check-enhanced.sh (optional)
 │   ├── tsc-check.sh        (optional, needs customization)
 │   └── trigger-build-resolver.sh  (optional)
 ├── agents/                 # 8 specialized agents
@@ -262,6 +273,7 @@ dev/
 | trigger-build-resolver | Stop | ⚠️ Optional | ⚠️ Heavy - monorepo only |
 | error-handling-reminder | Stop | ⚠️ Optional | ⚠️ Moderate |
 | stop-build-check-enhanced | Stop | ⚠️ Optional | ⚠️ Moderate |
+| session-doc-updater | Stop | ⚠️ Optional (installed by default) | ✅ None - no-ops until session indexing is configured ([CONFIG.md](.claude/hooks/CONFIG.md)) |
 
 **New in v2.0:**
 - **skill-verification-guard** - PreToolUse hook that analyzes code being written and enforces mandatory skill activation (two-try blocking model)
@@ -316,10 +328,10 @@ dev/
 
 **Solution:** Modular structure
 - Main SKILL.md <500 lines (overview + navigation)
-- Resource files <500 lines each (deep dives)
+- Resource files aim for <500 lines each (a few deep-dives run longer - split them as they grow)
 - Claude loads incrementally as needed
 
-**Example:** backend-dev-guidelines has 12 resource files covering routing, controllers, services, repositories, testing, etc.
+**Example:** backend-dev-guidelines has 11 resource files covering routing, controllers, services, repositories, testing, etc.
 
 ### Dev Docs Pattern
 
@@ -337,7 +349,7 @@ dev/
 ## ⚠️ Important: What Won't Work As-Is
 
 ### settings.json
-The included `settings.json` works out of the box for the essential hooks (UserPromptSubmit, PreToolUse, PostToolUse). If you add optional Stop hooks (tsc-check, build-check), those need customization for your project structure.
+The included `settings.json` works out of the box for the essential hooks (UserPromptSubmit, PreToolUse, PostToolUse). If you add optional Stop hooks (tsc-check, build-check), those need customization for your project structure. Note that the shipped `settings.json` contains hook registrations only - permissions are yours to manage (e.g. via `/permissions` in Claude Code).
 
 ### Blog Domain Examples
 Skills use generic blog examples (Post/Comment/User):
@@ -420,6 +432,17 @@ See [`.env.example`](.env.example) for full documentation.
 ---
 
 ## Getting Help
+
+### Troubleshooting / Disabling
+
+**Need everything off fast?** Remove the `"hooks"` block from `.claude/settings.json` - all hooks stop running immediately.
+
+**Per-feature kill switches** (set in your shell or before launching Claude Code):
+- `SESSION_DOCS_ENABLED=false` - disable session doc updates
+- `SKIP_MANDATORY_SKILLS=true` - bypass mandatory skill enforcement
+- `DEBUG_SKILLS=1` - verbose logging for skill activation
+
+**Where logs live:** `.claude/hooks/*.log` and `.claude/hooks/data/`
 
 ### For Users
 **Issues with integration?**

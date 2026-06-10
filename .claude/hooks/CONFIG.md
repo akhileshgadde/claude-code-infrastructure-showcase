@@ -135,25 +135,6 @@ if [[ "$repo" == "my-service" ]]; then
 fi
 ```
 
-### Prettier Configuration
-
-The prettier hook searches for configs in this order:
-1. Current file directory (walking upward)
-2. Project root
-3. Falls back to Prettier defaults
-
-#### Custom Prettier Config Search
-
-Edit `.claude/hooks/stop-prettier-formatter.sh`, function `get_prettier_config()`:
-
-```bash
-# Add custom config locations
-if [[ -f "$project_root/config/.prettierrc" ]]; then
-    echo "$project_root/config/.prettierrc"
-    return
-fi
-```
-
 ### Error Handling Reminders
 
 Configure file category detection in `.claude/hooks/error-handling-reminder.ts`:
@@ -356,35 +337,7 @@ You don't need all hooks. Choose what works for your project:
 }
 ```
 
-### Formatting Only (No Build Checking)
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use-tracker.sh"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-prettier-formatter.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+> Note: A Prettier formatting Stop hook is not included in this showcase. If you have your own formatter hook, register it as a Stop hook using the same pattern as the build-check example above.
 
 ## Cache Management
 
@@ -438,15 +391,6 @@ fi
 1. Limit TypeScript checks to changed files only
 2. Use faster package managers (pnpm > npm)
 3. Add more skip conditions
-4. Disable Prettier for large files
-
-```bash
-# Skip large files in stop-prettier-formatter.sh
-file_size=$(wc -c < "$file" 2>/dev/null || echo 0)
-if [[ $file_size -gt 100000 ]]; then  # Skip files > 100KB
-    continue
-fi
-```
 
 ### Debugging Hooks
 

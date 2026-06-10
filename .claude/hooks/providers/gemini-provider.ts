@@ -6,6 +6,7 @@
  *
  * Get a free API key: https://aistudio.google.com/apikey
  * Set GEMINI_API_KEY environment variable.
+ * Set GEMINI_MODEL to change model (default: gemini-3-flash-preview)
  */
 
 import type { AIProvider } from './ai-provider.js';
@@ -41,7 +42,7 @@ export class GeminiProvider implements AIProvider {
         }
 
         const response = await this.client.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: process.env.GEMINI_MODEL || 'gemini-3-flash-preview',
             contents: prompt,
         });
 

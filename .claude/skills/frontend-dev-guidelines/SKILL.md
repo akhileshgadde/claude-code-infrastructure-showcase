@@ -9,6 +9,8 @@ description: Frontend development guidelines for React/TypeScript applications. 
 
 Comprehensive guide for modern React development, emphasizing Suspense-based data fetching, lazy loading, proper file organization, and performance optimization.
 
+Written for React 18 + TypeScript + MUI v7 + TanStack Router/Query. Different stack? Adapt the principles - see CLAUDE_INTEGRATION_GUIDE.md in the repo root.
+
 ## When to Use This Skill
 
 - Creating new components or pages

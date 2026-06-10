@@ -962,7 +962,7 @@ Try editing a .vue file - the skill should activate.
 
 **When user says "add everything":**
 - Start with essentials: skill-activation hooks + 1-2 relevant skills
-- Don't overwhelm them with all 5 skills + 10 agents
+- Don't overwhelm them with all 4 skills + 8 agents
 - Ask what they actually need
 
 **When something doesn't work:**

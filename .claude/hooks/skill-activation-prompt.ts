@@ -692,6 +692,37 @@ function logSessionIntel(data: SessionIntelData): void {
 }
 
 // ============================================================
+// TIMEOUT HELPER
+// ============================================================
+
+const AI_TIMEOUT_MS = 10000;
+
+async function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    onTimeout: () => T,
+    label: string
+): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<T>(resolve => {
+        timer = setTimeout(() => {
+            if (process.env.DEBUG_SKILLS === '1') {
+                console.error(`[DEBUG] ${label} timed out after ${ms}ms, falling back`);
+            }
+            resolve(onTimeout());
+        }, ms);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        if (timer) clearTimeout(timer);
+        // Swallow late rejections if the promise loses the race
+        promise.catch(() => {});
+    }
+}
+
+// ============================================================
 // MAIN
 // ============================================================
 
@@ -702,10 +733,15 @@ async function main() {
         const prompt = data.prompt;
         const sessionId = data.session_id;
 
-        // Load skill rules
+        // Load skill rules (missing/malformed file = no skills configured, graceful no-op)
         const projectDir = process.env.CLAUDE_PROJECT_DIR || '.';
         const rulesPath = join(projectDir, '.claude', 'skills', 'skill-rules.json');
-        const rules: SkillRules = JSON.parse(readFileSync(rulesPath, 'utf-8'));
+        let rules: SkillRules = { version: '1.0', skills: {} };
+        try {
+            rules = JSON.parse(readFileSync(rulesPath, 'utf-8'));
+        } catch (err) {
+            console.error(`skill-activation-prompt: could not load skill-rules.json (${err instanceof Error ? err.message : String(err)}), continuing without skill suggestions`);
+        }
 
         // Get configuration
         const activationMode: ActivationMode = rules.settings?.skill_activation_mode || 'disabled';
@@ -744,8 +780,8 @@ async function main() {
                 };
             }).then(fn => fn());
         } else {
-            classificationPromise = (async () => {
-                const provider = await createProvider();
+            const aiClassificationPromise = (async () => {
+                const provider = await createProvider({ warnIfUnavailable: true });
                 if (provider) {
                     const classification = await classifyWithAI(provider, prompt, rules, conservativeness);
                     if (debug) {
@@ -771,13 +807,30 @@ async function main() {
                 }
                 return { result: EMPTY_CLASSIFICATION, source: 'none' };
             })();
+
+            classificationPromise = withTimeout(aiClassificationPromise, AI_TIMEOUT_MS, () => {
+                const fallbackMatches = fallbackKeywordMatch(prompt, rules);
+                const fallbackResult = fallbackToClassificationResult(fallbackMatches);
+                return {
+                    result: {
+                        mandatory: fallbackResult.mandatory.filter(s => rules.skills[s]),
+                        recommended: fallbackResult.recommended.filter(s => rules.skills[s]),
+                    },
+                    source: 'regex-timeout',
+                };
+            }, 'AI classification');
         }
 
         // Run classification + search in parallel
         const [classificationData, searchResult] = await Promise.all([
             classificationPromise,
             searchEnabled
-                ? searchRelevantSessions(prompt, searchQuality).catch(err => {
+                ? withTimeout(
+                    searchRelevantSessions(prompt, searchQuality),
+                    AI_TIMEOUT_MS,
+                    () => null,
+                    'Vector search'
+                ).catch(err => {
                     if (debug) console.error('[Session Search] Error:', err);
                     return null;
                 })
@@ -855,12 +908,12 @@ async function main() {
 
         process.exit(0);
     } catch (err) {
-        console.error('Error in skill-activation-prompt hook:', err);
-        process.exit(1);
+        console.error(`skill-activation-prompt: hook failed, continuing without suggestions (${err instanceof Error ? err.message : String(err)})`);
+        process.exit(0);
     }
 }
 
 main().catch(err => {
-    console.error('Uncaught error:', err);
-    process.exit(1);
+    console.error(`skill-activation-prompt: hook failed, continuing without suggestions (${err instanceof Error ? err.message : String(err)})`);
+    process.exit(0);
 });

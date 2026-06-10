@@ -33,8 +33,11 @@ const PROVIDER_CREATORS: Record<ProviderName, () => Promise<AIProvider | null>> 
 /**
  * Create an AI provider based on explicit override or auto-detection.
  * Returns null if no provider is available (regex-only mode).
+ *
+ * Pass warnIfUnavailable when AI mode was explicitly requested, so the
+ * "no provider" message is always visible (not just in debug mode).
  */
-export async function createProvider(): Promise<AIProvider | null> {
+export async function createProvider(options?: { warnIfUnavailable?: boolean }): Promise<AIProvider | null> {
     // 1. Explicit override
     const explicit = process.env.SKILL_AI_PROVIDER as ProviderName | undefined;
     if (explicit && PROVIDER_CREATORS[explicit]) {
@@ -42,6 +45,9 @@ export async function createProvider(): Promise<AIProvider | null> {
         const provider = await PROVIDER_CREATORS[explicit]();
         if (provider) return provider;
         if (debug) console.error(`[Provider] Explicit provider ${explicit} failed to initialize`);
+        if (options?.warnIfUnavailable) {
+            console.error('skill-activation: no AI provider available, using regex-only mode');
+        }
         return null;
     }
 
@@ -64,6 +70,10 @@ export async function createProvider(): Promise<AIProvider | null> {
         }
     }
 
-    if (debug) console.error('[Provider] No AI provider available, using regex-only mode');
+    if (options?.warnIfUnavailable) {
+        console.error('skill-activation: no AI provider available, using regex-only mode');
+    } else if (debug) {
+        console.error('[Provider] No AI provider available, using regex-only mode');
+    }
     return null;
 }

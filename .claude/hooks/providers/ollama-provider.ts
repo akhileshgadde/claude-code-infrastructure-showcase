@@ -17,6 +17,7 @@ import type { AIProvider } from './ai-provider.js';
 const DEFAULT_BASE_URL = 'http://localhost:11434';
 const DEFAULT_MODEL = 'llama3.2';
 const PING_TIMEOUT_MS = 500;
+const GENERATE_TIMEOUT_MS = 5000;
 
 export class OllamaProvider implements AIProvider {
     readonly name = 'ollama';
@@ -60,22 +61,35 @@ export class OllamaProvider implements AIProvider {
     }
 
     private async generate(prompt: string): Promise<string> {
-        const response = await fetch(`${this.baseUrl}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: this.model,
-                prompt,
-                stream: false,
-            }),
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS);
 
-        if (!response.ok) {
-            throw new Error(`Ollama request failed: ${response.status}`);
+        try {
+            const response = await fetch(`${this.baseUrl}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: this.model,
+                    prompt,
+                    stream: false,
+                }),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Ollama request failed: ${response.status}`);
+            }
+
+            const data = await response.json() as { response?: string };
+            return data.response || '';
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`Ollama request timed out after ${GENERATE_TIMEOUT_MS}ms`);
+            }
+            throw new Error(`Ollama request failed: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+            clearTimeout(timeout);
         }
-
-        const data = await response.json() as { response?: string };
-        return data.response || '';
     }
 }
 

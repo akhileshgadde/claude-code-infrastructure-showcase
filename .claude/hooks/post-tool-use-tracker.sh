@@ -9,6 +9,12 @@ set -e
 tool_info=$(cat)
 
 
+# jq is required to parse hook input
+if ! command -v jq >/dev/null 2>&1; then
+    echo "claude hooks: jq is required for this hook - install jq or remove the hook from settings.json" >&2
+    exit 0
+fi
+
 # Extract relevant data
 tool_name=$(echo "$tool_info" | jq -r '.tool_name // empty')
 file_path=$(echo "$tool_info" | jq -r '.tool_input.file_path // empty')

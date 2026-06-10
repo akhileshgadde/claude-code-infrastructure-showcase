@@ -11,6 +11,12 @@ CACHE_DIR="$HOME/.claude/tsc-cache/$SESSION_ID"
 # Create cache directory
 mkdir -p "$CACHE_DIR"
 
+# jq is required to parse hook input
+if ! command -v jq >/dev/null 2>&1; then
+    echo "claude hooks: jq is required for this hook - install jq or remove the hook from settings.json" >&2
+    exit 0
+fi
+
 # Extract tool name and input
 TOOL_NAME=$(echo "$HOOK_INPUT" | jq -r '.tool_name // ""')
 TOOL_INPUT=$(echo "$HOOK_INPUT" | jq -r '.tool_input // {}')
@@ -160,8 +166,8 @@ $CHECK_OUTPUT"
                     fi
                 } >&2
                 
-                # Exit with code 1 to make stderr visible
-                exit 1
+                # Exit with code 2 to feed the errors back to Claude
+                exit 2
             fi
         fi
         ;;

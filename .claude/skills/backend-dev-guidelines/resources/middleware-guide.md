@@ -17,7 +17,9 @@ Complete guide to creating and using middleware in backend microservices.
 
 ### SSOMiddleware Pattern
 
-**File:** `/form/src/middleware/SSOMiddleware.ts`
+**Example (from the original production project):** `/form/src/middleware/SSOMiddleware.ts`
+
+`SSOMiddlewareClient` is that project's Keycloak SSO wrapper - a generic JWT-verification middleware (like the body below) works the same way.
 
 ```typescript
 export class SSOMiddlewareClient {
@@ -46,7 +48,7 @@ export class SSOMiddlewareClient {
 
 ### Excellent Pattern from Blog API
 
-**File:** `/form/src/middleware/auditMiddleware.ts`
+**Example (from the original production project):** `/form/src/middleware/auditMiddleware.ts`
 
 ```typescript
 import { AsyncLocalStorage } from 'async_hooks';
@@ -104,7 +106,7 @@ async function someOperation() {
 
 ### Comprehensive Error Handler
 
-**File:** `/form/src/middleware/errorBoundary.ts`
+**Example (from the original production project):** `/form/src/middleware/errorBoundary.ts`
 
 ```typescript
 export function errorBoundary(

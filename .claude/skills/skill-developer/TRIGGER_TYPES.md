@@ -165,16 +165,16 @@ frontend/src/**/*.ts         # All TypeScript files
 frontend/src/components/**   # Only components directory
 
 # Backend Services
-form/src/**/*.ts            # Form service
-email/src/**/*.ts           # Email service
-users/src/**/*.ts           # Users service
+src/**/*.ts                 # Single-service repo
+services/*/src/**/*.ts      # Services in a services/ directory
+form/src/**/*.ts            # Form service (example from a monorepo)
 
 # Database
 **/schema.prisma            # Prisma schema (anywhere)
 **/migrations/**/*.sql      # Migration files
 database/src/**/*.ts        # Database scripts
 
-# Workflows
+# Workflows (example from a monorepo)
 form/src/workflow/**/*.ts              # Workflow engine
 form/src/workflow-definitions/**/*.json # Workflow definitions
 

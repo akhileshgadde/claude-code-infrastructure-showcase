@@ -36,6 +36,8 @@ Hook (owns prompts)           Provider (sends/receives text)
 | Anthropic | `@anthropic-ai/sdk` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` | No (pay-per-use) |
 | Ollama | HTTP fetch | `llama3.2` | None needed | Yes (runs locally) |
 
+**Cost:** These are tiny classification prompts, so per-call cost is fractions of a cent on all hosted providers. Gemini's free tier covers typical usage. Ollama is free, local, and offline - the right choice for privacy-sensitive setups.
+
 ## Auto-Detection Priority
 
 The factory tries providers in this order:

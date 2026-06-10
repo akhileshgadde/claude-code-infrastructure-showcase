@@ -67,17 +67,27 @@ router.get('/route', async (req, res) => {
 
 ### 3. Workflow Error Handling
 
+Example of a domain-specific Sentry helper from the original production project. If you build a helper like this for your domain, the call site looks like:
+
 ```typescript
 import { WorkflowSentryHelper } from '../workflow/utils/sentryHelper';
 
-// ✅ CORRECT - Use WorkflowSentryHelper
 WorkflowSentryHelper.captureWorkflowError(error, {
-    workflowCode: 'DHS_CLOSEOUT',
+    workflowCode: 'INVOICE_APPROVAL',
     instanceId: 123,
     stepId: 456,
     userId: 'user-123',
     operation: 'stepCompletion',
     metadata: { additionalInfo: 'value' }
+});
+```
+
+Without a helper, plain Sentry works everywhere:
+
+```typescript
+Sentry.captureException(error, {
+    tags: { operation: 'stepCompletion' },
+    extra: { workflowCode: 'INVOICE_APPROVAL', instanceId: 123, userId: 'user-123' }
 });
 ```
 
@@ -126,10 +136,11 @@ main()
 
 ### 5. Database Performance Monitoring
 
+Example from the original production project - a small helper that wraps DB calls in Sentry spans. Adapt to your codebase:
+
 ```typescript
 import { DatabasePerformanceMonitor } from '../utils/databasePerformance';
 
-// ✅ CORRECT - Wrap database operations
 const result = await DatabasePerformanceMonitor.withPerformanceTracking(
     'findMany',
     'UserProfile',
@@ -139,6 +150,18 @@ const result = await DatabasePerformanceMonitor.withPerformanceTracking(
         });
     }
 );
+```
+
+The universally-available equivalent is a direct Sentry span:
+
+```typescript
+const result = await Sentry.startSpan({
+    name: 'db.userProfile.findMany',
+    op: 'db.query',
+    attributes: { 'db.model': 'UserProfile', 'db.operation': 'findMany' }
+}, async () => {
+    return await prisma.userProfile.findMany({ take: 5 });
+});
 ```
 
 ### 6. Async Operations with Spans
@@ -182,7 +205,7 @@ Sentry.withScope((scope) => {
     // Add operation-specific context
     scope.setContext('operation', {
         type: 'workflow.start',
-        workflowCode: 'DHS_CLOSEOUT',
+        workflowCode: 'INVOICE_APPROVAL',
         entityId: 123
     });
 

@@ -194,6 +194,14 @@ async function validateProvider(provider: string): Promise<boolean> {
 // ============================================================
 
 async function main() {
+    // ---- Node version check ----
+    const nodeMajor = parseInt(process.versions.node, 10);
+    if (nodeMajor < 18) {
+        console.error(`Error: Node 18+ required (20+ recommended), found v${process.versions.node}`);
+        rl.close();
+        process.exit(1);
+    }
+
     console.log('');
     console.log('============================================================');
     console.log('  Claude Code Infrastructure - Setup Wizard');
@@ -237,9 +245,17 @@ async function main() {
 
     // Verify target exists
     if (!fs.existsSync(targetDir)) {
-        console.log(`\n  Error: Target directory does not exist: ${targetDir}`);
-        rl.close();
-        process.exit(1);
+        console.log(`\n  Target directory does not exist: ${targetDir}`);
+        const create = await promptString('  Create it? (y/n)', 'n');
+        if (create.toLowerCase() === 'y') {
+            fs.mkdirSync(targetDir, { recursive: true });
+            console.log(`  Created ${targetDir}`);
+        } else {
+            console.log('  To create it yourself, run:');
+            console.log(`    mkdir -p ${targetDir}`);
+            rl.close();
+            process.exit(1);
+        }
     }
 
     console.log(`\n  Source:  ${sourceDir}`);
@@ -250,8 +266,13 @@ async function main() {
     const isUpgrade = fs.existsSync(targetClaudeDir);
 
     if (isUpgrade) {
-        console.log('\n  Existing .claude/ found - will update configuration only.');
-        console.log('  (Your existing skills, agents, and hooks are preserved.)');
+        console.log('\n  Existing .claude/ found - no files will be copied.');
+        console.log('  On a re-run, this script only:');
+        console.log('    1. Makes your existing hook scripts executable (chmod +x)');
+        console.log('    2. Updates skill-rules.json settings (only if that file exists)');
+        console.log('    3. Runs npm install for hook dependencies');
+        console.log('  If you want the new files from this repo, delete or rename your');
+        console.log('  .claude/ first and re-run, or copy the pieces you want manually.');
     } else {
         console.log('\n  No .claude/ found - will copy full infrastructure.');
     }
@@ -369,8 +390,14 @@ async function main() {
         try {
             execSync('chmod +x *.sh', { cwd: hooksDir, stdio: 'pipe' });
             console.log('  Made hook scripts executable');
-        } catch {
-            console.log('  Warning: Could not chmod +x hooks (maybe Windows?)');
+        } catch (err) {
+            if (process.platform === 'win32') {
+                console.log('  Note: skipping chmod on Windows (not needed there).');
+            } else {
+                console.log(`  Warning: Could not chmod +x hooks: ${err instanceof Error ? err.message : err}`);
+                console.log('  Run manually:');
+                console.log(`    chmod +x ${path.join(hooksDir, '*.sh')}`);
+            }
         }
     }
 
@@ -440,12 +467,25 @@ async function main() {
         console.log('  Editor:           NeoVim config installed');
     }
 
-    console.log('\n  What was installed:');
-    console.log('    .claude/hooks/     - Skill activation hooks (auto-trigger skills)');
-    console.log('    .claude/skills/    - 5 production skills + skill-rules.json');
-    console.log('    .claude/agents/    - 10 specialized agents');
-    console.log('    .claude/commands/  - 3 slash commands (/dev-docs, etc.)');
-    console.log('    .claude/settings.json - Hook registrations');
+    if (isUpgrade) {
+        console.log('\n  What was updated (no files copied - existing .claude/ left as-is):');
+        if (fs.existsSync(hooksDir)) {
+            console.log('    .claude/hooks/*.sh - made executable');
+        }
+        if (fs.existsSync(rulesPath)) {
+            console.log('    .claude/skills/skill-rules.json - activation settings updated');
+        }
+        if (fs.existsSync(path.join(hooksDir, 'package.json'))) {
+            console.log('    .claude/hooks/ - npm dependencies installed');
+        }
+    } else {
+        console.log('\n  What was installed:');
+        console.log('    .claude/hooks/     - Skill activation hooks (auto-trigger skills)');
+        console.log('    .claude/skills/    - 4 production skills + skill-rules.json');
+        console.log('    .claude/agents/    - 8 specialized agents');
+        console.log('    .claude/commands/  - 3 slash commands (/dev-docs, etc.)');
+        console.log('    .claude/settings.json - Hook registrations');
+    }
     if (installEditor) {
         console.log('    ~/.config/nvim/init.lua - NeoVim config (Space+w to submit)');
         console.log('    ~/.vimrc               - Vim fallback config');

@@ -4,6 +4,7 @@
  * Uses @anthropic-ai/sdk with claude-haiku-4-5-20251001 model.
  *
  * Set ANTHROPIC_API_KEY environment variable.
+ * Set ANTHROPIC_MODEL to change model (default: claude-haiku-4-5-20251001)
  */
 
 import type { AIProvider } from './ai-provider.js';
@@ -39,7 +40,7 @@ export class AnthropicProvider implements AIProvider {
         }
 
         const response = await this.client.messages.create({
-            model: 'claude-haiku-4-5-20251001',
+            model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             messages: [{ role: 'user', content: prompt }],
         });

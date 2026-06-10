@@ -85,7 +85,9 @@ async function main() {
         const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
         // Check for edited files tracking
-        const cacheDir = join(process.env.HOME || '/root', '.claude', 'tsc-cache', session_id);
+        const cacheDir = process.env.CLAUDE_PROJECT_DIR
+            ? join(projectDir, '.claude', 'tsc-cache', session_id)
+            : join(process.env.HOME || '/root', '.claude', 'tsc-cache', session_id);
         const trackingFile = join(cacheDir, 'edited-files.log');
 
         if (!existsSync(trackingFile)) {

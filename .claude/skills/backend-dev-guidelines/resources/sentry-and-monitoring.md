@@ -178,6 +178,8 @@ try {
 
 ### Database Performance Tracking
 
+Example from the original production project - a small helper that wraps DB calls in Sentry spans. If you build a helper like this, the call site looks like:
+
 ```typescript
 import { DatabasePerformanceMonitor } from '../utils/databasePerformance';
 
@@ -188,6 +190,18 @@ const result = await DatabasePerformanceMonitor.withPerformanceTracking(
         return await PrismaService.main.userProfile.findMany({ take: 5 });
     }
 );
+```
+
+No helper? Use a direct Sentry span - works everywhere:
+
+```typescript
+const result = await Sentry.startSpan({
+    name: 'db.userProfile.findMany',
+    op: 'db.query',
+    attributes: { 'db.model': 'UserProfile', 'db.operation': 'findMany' }
+}, async () => {
+    return await prisma.userProfile.findMany({ take: 5 });
+});
 ```
 
 ### API Endpoint Spans
