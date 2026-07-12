@@ -401,6 +401,24 @@ dev/
 
 ---
 
+## Works with Codex Too (Cross-Agent Support)
+
+Codex CLI's hooks system uses the same events, stdin schema, and exit-code semantics as Claude Code, and skills follow the cross-agent [Agent Skills standard](https://agentskills.io). This repo ships both wired up — **one canonical codebase, zero forked scripts**:
+
+- **`.agents/skills/`** — a synced mirror of `.claude/skills/` in the standard location Codex (and 30+ other tools) reads natively. Keep it fresh with `.claude/scripts/sync-agent-skills.sh`; `verify-setup` warns on drift.
+- **`.codex/hooks.json`** — registers the same four lifecycle hooks for Codex.
+- **`.codex/hooks/_codex-adapter.sh`** — a thin shim that closes the two real gaps: it sets `CLAUDE_PROJECT_DIR` (Codex runs hooks at the session cwd) and translates Codex's native `apply_patch` tool into per-file events the verification guard understands. Everything else passes through untouched to `.claude/hooks/`.
+
+Setup:
+
+1. Install Codex natively in your shell environment (`npm i -g @openai/codex`). If you're on WSL, don't use a Windows-side install through the interop layer — hooks would run as Windows processes with UNC paths.
+2. Launch `codex` from the repo root. On first run Codex asks you to **trust this project's hooks** — accept (trust is hash-persisted in `~/.codex/config.toml`, and re-prompted if the hook config changes).
+3. That's it. Prompt-time skill suggestions, edit blocking for `block`-enforced skills (two-try model included), file tracking, session-state, and the activation telemetry (`state/metrics.jsonl`) all run identically under both agents — same state directory, same metrics, one `skill-rules.json`.
+
+Known parity gap: Codex has no `Skill` tool event, so the PostToolUse tracker that clears `mandatory_pending` early never fires there; the two-try model bounds the cost at one advisory block per skill per session. `.codex/agents/` is an experimental subagent port and not wired into any of this.
+
+---
+
 ## ⚠️ Important: What Won't Work As-Is
 
 ### settings.json

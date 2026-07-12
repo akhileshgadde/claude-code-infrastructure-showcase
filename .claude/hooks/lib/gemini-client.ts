@@ -1,5 +1,6 @@
 // Session Intelligence System - Gemini Client Wrapper
 import { GoogleGenAI } from '@google/genai';
+import { parseLLMJson } from '../providers/parse-llm-json.js';
 import type { RelevanceAssessment, VectorSearchResult } from './types.js';
 
 // ============================================================
@@ -49,13 +50,10 @@ Return ONLY a JSON array of strings, e.g.: ["term1", "term2", "term3"]`;
         contents: prompt,
     });
 
-    try {
-        const text = response.text?.trim() || '[]';
-        const cleaned = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-        return JSON.parse(cleaned);
-    } catch {
-        return [];
-    }
+    const parsed = parseLLMJson(response.text?.trim() || '');
+    return Array.isArray(parsed)
+        ? parsed.filter((t: unknown): t is string => typeof t === 'string')
+        : [];
 }
 
 // ============================================================
@@ -96,11 +94,8 @@ Return ONLY the JSON object.`;
         contents: prompt,
     });
 
-    try {
-        const text = response.text?.trim() || '';
-        const cleaned = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-        return JSON.parse(cleaned);
-    } catch {
-        return null;
-    }
+    const parsed = parseLLMJson(response.text?.trim() || '');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed as RelevanceAssessment
+        : null;
 }

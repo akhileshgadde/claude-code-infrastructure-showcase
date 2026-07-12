@@ -57,7 +57,7 @@ while IFS= read -r repo; do
     fi
     
     # Run TSC and capture output
-    if ! output=$(eval "$tsc_cmd" 2>&1); then
+    if ! output=$(bash -c "$tsc_cmd" 2>&1); then
         # TSC failed - we have errors
         has_errors=true
         

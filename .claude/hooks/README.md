@@ -170,7 +170,7 @@ chmod +x your-project/.claude/hooks/post-tool-use-tracker.sh
 
 ### trigger-build-resolver (Stop)
 
-**Purpose:** Auto-launches build-error-resolver agent when compilation fails
+**Purpose:** Auto-launches auto-error-resolver agent when compilation fails
 
 **Depends on:** tsc-check hook working correctly
 

@@ -67,3 +67,5 @@ dev/active/**/*.md
 
 # Local backup clone
 ccip/
+# Held-out benchmark corpus contains real prompts from private projects - never commit
+docs/benchmarks/skill-activation/heldout/

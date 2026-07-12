@@ -12,14 +12,14 @@ export function parseLLMJson(text: string): any | null {
     if (!text) return null;
 
     try {
-        // Try markdown code block first: ```json ... ```
-        const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+        // Try markdown code block first: ```json ... ``` (or bare ``` ... ```)
+        const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (codeBlockMatch) {
             return JSON.parse(codeBlockMatch[1]);
         }
 
-        // Try direct JSON object match (first balanced object)
-        const extracted = extractFirstJsonObject(text);
+        // Try direct JSON match (first balanced object or array)
+        const extracted = extractFirstJsonValue(text);
         if (extracted) {
             return JSON.parse(extracted);
         }
@@ -31,12 +31,17 @@ export function parseLLMJson(text: string): any | null {
 }
 
 /**
- * Extract the first complete JSON object from a string by tracking
- * brace depth, respecting string literals and escape sequences.
+ * Extract the first complete JSON object or array from a string by tracking
+ * brace/bracket depth, respecting string literals and escape sequences.
  */
-function extractFirstJsonObject(text: string): string | null {
-    const start = text.indexOf('{');
-    if (start === -1) return null;
+function extractFirstJsonValue(text: string): string | null {
+    const objStart = text.indexOf('{');
+    const arrStart = text.indexOf('[');
+    if (objStart === -1 && arrStart === -1) return null;
+
+    const start = objStart === -1 ? arrStart
+        : arrStart === -1 ? objStart
+        : Math.min(objStart, arrStart);
 
     let depth = 0;
     let inString = false;
@@ -61,9 +66,9 @@ function extractFirstJsonObject(text: string): string | null {
 
         if (char === '"') {
             inString = true;
-        } else if (char === '{') {
+        } else if (char === '{' || char === '[') {
             depth++;
-        } else if (char === '}') {
+        } else if (char === '}' || char === ']') {
             depth--;
             if (depth === 0) {
                 return text.slice(start, i + 1);

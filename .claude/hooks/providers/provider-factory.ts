@@ -9,8 +9,12 @@
  * 2. GEMINI_API_KEY present -> Gemini
  * 3. OPENAI_API_KEY present -> OpenAI
  * 4. ANTHROPIC_API_KEY present -> Anthropic
- * 5. Ollama ping (500ms timeout) -> Ollama
+ * 5. OLLAMA_BASE_URL present -> Ollama (ping, 500ms timeout)
  * 6. null -> regex-only fallback
+ *
+ * Ollama requires explicit opt-in (SKILL_AI_PROVIDER=ollama or OLLAMA_BASE_URL):
+ * probing for it unconditionally would cost every hook call a 500ms network
+ * ping whenever no provider is configured — the default install.
  */
 
 import type { AIProvider } from './ai-provider.js';
@@ -56,7 +60,7 @@ export async function createProvider(options?: { warnIfUnavailable?: boolean }):
         { check: () => !!process.env.GEMINI_API_KEY, name: 'gemini' },
         { check: () => !!process.env.OPENAI_API_KEY, name: 'openai' },
         { check: () => !!process.env.ANTHROPIC_API_KEY, name: 'anthropic' },
-        { check: () => true, name: 'ollama' }, // Always try Ollama last (ping check)
+        { check: () => !!process.env.OLLAMA_BASE_URL, name: 'ollama' }, // Opt-in only: the ping costs 500ms when Ollama is absent
     ];
 
     for (const { check, name } of cascade) {

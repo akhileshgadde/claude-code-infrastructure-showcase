@@ -15,10 +15,12 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 0
 fi
 
-# Extract relevant data
-tool_name=$(echo "$tool_info" | jq -r '.tool_name // empty')
-file_path=$(echo "$tool_info" | jq -r '.tool_input.file_path // empty')
-session_id=$(echo "$tool_info" | jq -r '.session_id // empty')
+# Extract relevant data (single jq invocation, one value per line)
+{
+    read -r tool_name
+    read -r file_path
+    read -r session_id
+} < <(echo "$tool_info" | jq -r '.tool_name // "", .tool_input.file_path // "", .session_id // ""')
 
 
 # Skip if not an edit tool or no file path
@@ -83,6 +85,10 @@ detect_repo() {
             # Check if it's a source file in root
             if [[ ! "$relative_path" =~ / ]]; then
                 echo "root"
+            elif [[ -f "$CLAUDE_PROJECT_DIR/$repo/package.json" ]] || [[ -f "$CLAUDE_PROJECT_DIR/$repo/tsconfig.json" ]]; then
+                # Any other top-level directory that looks like a JS/TS service
+                # (covers layouts like blog-api/, auth-service/, ...)
+                echo "$repo"
             else
                 echo "unknown"
             fi
@@ -154,8 +160,8 @@ if [[ "$repo" == "unknown" ]] || [[ -z "$repo" ]]; then
     exit 0  # Exit 0 for skip conditions
 fi
 
-# Log edited file
-echo "$(date +%s):$file_path:$repo" >> "$cache_dir/edited-files.log"
+# Log edited file (tab-delimited: paths may legitimately contain colons)
+printf '%s\t%s\t%s\n' "$(date +%s)" "$file_path" "$repo" >> "$cache_dir/edited-files.log"
 
 # Update affected repos list
 if ! grep -q "^$repo$" "$cache_dir/affected-repos.txt" 2>/dev/null; then

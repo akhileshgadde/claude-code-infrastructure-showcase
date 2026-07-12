@@ -3,13 +3,12 @@
 # TSC Hook with Visible Output
 # Uses stderr for visibility in Claude Code main interface
 
-CLAUDE_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$HOME/project}"
 HOOK_INPUT=$(cat)
-SESSION_ID="${session_id:-default}"
-CACHE_DIR="$HOME/.claude/tsc-cache/$SESSION_ID"
 
-# Create cache directory
-mkdir -p "$CACHE_DIR"
+# Skip silently if not running under Claude Code
+if [ -z "$CLAUDE_PROJECT_DIR" ]; then
+    exit 0
+fi
 
 # jq is required to parse hook input
 if ! command -v jq >/dev/null 2>&1; then
@@ -17,23 +16,31 @@ if ! command -v jq >/dev/null 2>&1; then
     exit 0
 fi
 
+# Session id arrives in the hook's stdin JSON (Claude Code sets no session env var)
+SESSION_ID=$(echo "$HOOK_INPUT" | jq -r '.session_id // "default"')
+CACHE_DIR="$HOME/.claude/tsc-cache/$SESSION_ID"
+
+# Create cache directory
+mkdir -p "$CACHE_DIR"
+
 # Extract tool name and input
 TOOL_NAME=$(echo "$HOOK_INPUT" | jq -r '.tool_name // ""')
 TOOL_INPUT=$(echo "$HOOK_INPUT" | jq -r '.tool_input // {}')
 
-# Function to get repo for a file
+# Function to get repo for a file: any top-level directory with a tsconfig.json
+# counts as a checkable repo.
+# CUSTOMIZE: to restrict checks to specific services, add a case statement here,
+# e.g.:  case "$repo" in email|exports|form) ;; *) echo ""; return 1 ;; esac
 get_repo_for_file() {
     local file_path="$1"
     local relative_path="${file_path#$CLAUDE_PROJECT_DIR/}"
-    
+
     if [[ "$relative_path" =~ ^([^/]+)/ ]]; then
         local repo="${BASH_REMATCH[1]}"
-        case "$repo" in
-            email|exports|form|frontend|projects|uploads|users|utilities|events|database)
-                echo "$repo"
-                return 0
-                ;;
-        esac
+        if [ -f "$CLAUDE_PROJECT_DIR/$repo/tsconfig.json" ]; then
+            echo "$repo"
+            return 0
+        fi
     fi
     echo ""
     return 1
@@ -82,18 +89,15 @@ run_tsc_check() {
         echo "$tsc_cmd" > "$cache_file"
     fi
     
-    eval "$tsc_cmd" 2>&1
+    bash -c "$tsc_cmd" 2>&1
 }
 
 # Only process file modification tools
 case "$TOOL_NAME" in
     Write|Edit|MultiEdit)
-        # Extract file paths
-        if [ "$TOOL_NAME" = "MultiEdit" ]; then
-            FILE_PATHS=$(echo "$TOOL_INPUT" | jq -r '.edits[].file_path // empty')
-        else
-            FILE_PATHS=$(echo "$TOOL_INPUT" | jq -r '.file_path // empty')
-        fi
+        # Extract file path (Edit, Write, and MultiEdit all carry a single
+        # top-level file_path; MultiEdit's edits[] entries have no path)
+        FILE_PATHS=$(echo "$TOOL_INPUT" | jq -r '.file_path // empty')
         
         # Collect repos that need checking (only for TS/JS files)
         REPOS_TO_CHECK=$(echo "$FILE_PATHS" | grep -E '\.(ts|tsx|js|jsx)$' | while read -r file_path; do

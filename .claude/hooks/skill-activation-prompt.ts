@@ -26,6 +26,8 @@ import type { AIProvider } from './providers/ai-provider.js';
 import { EMPTY_CLASSIFICATION } from './providers/ai-provider.js';
 import { parseLLMJson } from './providers/parse-llm-json.js';
 import { createProvider } from './providers/provider-factory.js';
+import { loadSessionState, updateSessionState } from './lib/session-state.js';
+import { recordMetric } from './lib/metrics.js';
 
 // Session intelligence imports (graceful - won't crash if lib/ missing)
 let VectorStore: typeof import('./lib/vector-store.js').VectorStore | null = null;
@@ -60,6 +62,7 @@ type SearchQuality = 'fast' | 'moderate' | 'quality';
 interface SkillRulesSettings {
     skill_activation_mode?: ActivationMode;
     conservativeness?: ConservativenessLevel;
+    ai_can_arm_blocks?: boolean;
 }
 
 interface HookInput {
@@ -93,12 +96,6 @@ interface MatchedSkill {
     name: string;
     matchType: 'keyword' | 'intent';
     config: SkillRule;
-}
-
-interface SessionState {
-    skills_used: string[];
-    mandatory_pending: string[];
-    last_updated: string;
 }
 
 interface ClassificationResult {
@@ -326,12 +323,29 @@ function fallbackKeywordMatch(prompt: string, rules: SkillRules): MatchedSkill[]
 }
 
 function fallbackToClassificationResult(matched: MatchedSkill[]): ClassificationResult {
+    // Only enforcement: "block" skills may demand mandatory activation (and be
+    // enforced by the PreToolUse guard); suggest/warn skills stay advisory no
+    // matter how strong the trigger match is.
     const mandatory = matched
-        .filter(s => s.matchType === 'intent')
+        .filter(s => s.matchType === 'intent' && s.config.enforcement === 'block')
         .map(s => s.name);
     const recommended = matched
-        .filter(s => s.matchType === 'keyword')
+        .filter(s => !(s.matchType === 'intent' && s.config.enforcement === 'block'))
         .map(s => s.name);
+    return { mandatory, recommended };
+}
+
+function enforceMandatoryEligibility(result: ClassificationResult, rules: SkillRules): ClassificationResult {
+    // AI classification is suggest-only by default: on real-world prompts it
+    // over-triggers (~1/3 of off-topic prompts in the 2026-07 held-out
+    // benchmark), so letting it arm hard blocks means wrong blocks. Opt in
+    // via settings.ai_can_arm_blocks if you want AI-armed enforcement.
+    const aiCanArmBlocks = rules.settings?.ai_can_arm_blocks === true;
+    const mandatory = aiCanArmBlocks
+        ? result.mandatory.filter(s => rules.skills[s]?.enforcement === 'block')
+        : [];
+    const demoted = result.mandatory.filter(s => rules.skills[s] && !mandatory.includes(s));
+    const recommended = [...new Set([...demoted, ...result.recommended.filter(s => rules.skills[s])])];
     return { mandatory, recommended };
 }
 
@@ -377,47 +391,6 @@ function generateTieredOutput(
     }
 
     return output;
-}
-
-// ============================================================
-// SESSION STATE MANAGEMENT
-// ============================================================
-
-function loadSessionState(sessionId: string): SessionState {
-    const projectDir = process.env.CLAUDE_PROJECT_DIR || '.';
-    const statePath = join(projectDir, '.claude', 'hooks', 'state', `skills-used-${sessionId}.json`);
-
-    const defaultState: SessionState = {
-        skills_used: [],
-        mandatory_pending: [],
-        last_updated: new Date().toISOString(),
-    };
-
-    if (existsSync(statePath)) {
-        try {
-            const loaded = JSON.parse(readFileSync(statePath, 'utf-8'));
-            return { ...defaultState, ...loaded };
-        } catch {
-            return defaultState;
-        }
-    }
-    return defaultState;
-}
-
-function saveSessionState(sessionId: string, state: SessionState): void {
-    const projectDir = process.env.CLAUDE_PROJECT_DIR || '.';
-    const stateDir = join(projectDir, '.claude', 'hooks', 'state');
-    const statePath = join(stateDir, `skills-used-${sessionId}.json`);
-
-    try {
-        if (!existsSync(stateDir)) {
-            mkdirSync(stateDir, { recursive: true });
-        }
-        state.last_updated = new Date().toISOString();
-        writeFileSync(statePath, JSON.stringify(state, null, 2));
-    } catch {
-        // Ignore write errors
-    }
 }
 
 // ============================================================
@@ -787,8 +760,8 @@ async function main() {
                     if (debug) {
                         console.error(`[DEBUG] AI result (${provider.name}):`, JSON.stringify(classification));
                     }
-                    const validMandatory = classification.mandatory.filter(s => rules.skills[s]);
-                    const validRecommended = classification.recommended.filter(s => rules.skills[s]);
+                    const { mandatory: validMandatory, recommended: validRecommended } =
+                        enforceMandatoryEligibility(classification, rules);
 
                     if (validMandatory.length === 0 && validRecommended.length === 0 && activationMode === 'fallback') {
                         if (debug) console.error('[DEBUG] AI returned nothing, falling back to regex');
@@ -863,16 +836,19 @@ async function main() {
             console.log(generateTieredOutput(newMandatory, newRecommended, classificationSource));
 
             const allNewSkills = [...newMandatory, ...newRecommended];
-            sessionState.skills_used = [...sessionState.skills_used, ...allNewSkills];
+            updateSessionState(sessionId, state => {
+                state.skills_used = [...new Set([...state.skills_used, ...allNewSkills])];
+                if (newMandatory.length > 0) {
+                    state.mandatory_pending = [...new Set([...state.mandatory_pending, ...newMandatory])];
+                }
+            });
 
-            if (newMandatory.length > 0) {
-                sessionState.mandatory_pending = [
-                    ...(sessionState.mandatory_pending || []),
-                    ...newMandatory,
-                ];
+            for (const skill of newMandatory) {
+                recordMetric({ event: 'suggested', session: sessionId, skill, level: 'mandatory', source: classificationSource });
             }
-
-            saveSessionState(sessionId, sessionState);
+            for (const skill of newRecommended) {
+                recordMetric({ event: 'suggested', session: sessionId, skill, level: 'recommended', source: classificationSource });
+            }
         }
 
         // === SESSION CONTEXT INJECTION ===

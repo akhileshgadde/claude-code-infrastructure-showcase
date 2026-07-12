@@ -12,12 +12,14 @@
  * - Second edit attempt: ALLOWED (mandatory_pending is now empty)
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'fs';
+import { readFileSync, existsSync, appendFileSync } from 'fs';
 import { join } from 'path';
 import { minimatch } from 'minimatch';
 import type { AIProvider } from './providers/ai-provider.js';
 import { parseLLMJson } from './providers/parse-llm-json.js';
 import { createProvider } from './providers/provider-factory.js';
+import { loadSessionState, updateSessionState } from './lib/session-state.js';
+import { recordMetric } from './lib/metrics.js';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -64,16 +66,6 @@ interface SkillRules {
     skills: Record<string, SkillRule>;
 }
 
-interface SessionState {
-    skills_used: string[];
-    files_verified: string[];
-    mandatory_pending?: string[];
-    ai_suggested_skills?: string[];
-    files_analyzed_by_ai?: string[];
-    pretooluse_pending?: string[];
-    last_updated?: string;
-}
-
 // ============================================================
 // DEBUG & LOGGING
 // ============================================================
@@ -103,15 +95,6 @@ function logInvocation(projectDir: string, data: { action: string; [key: string]
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
-
-function saveSessionState(sessionFile: string, state: SessionState): void {
-    try {
-        state.last_updated = new Date().toISOString();
-        writeFileSync(sessionFile, JSON.stringify(state, null, 2));
-    } catch {
-        // Fail silently
-    }
-}
 
 function globMatch(filePath: string, pattern: string): boolean {
     return minimatch(filePath, pattern, { matchBase: true, dot: true });
@@ -286,17 +269,8 @@ async function main() {
         const rules: SkillRules = JSON.parse(readFileSync(rulesPath, 'utf-8'));
 
         // Session state
-        const stateDir = join(projectDir, '.claude', 'hooks', 'state');
-        if (!existsSync(stateDir)) {
-            mkdirSync(stateDir, { recursive: true });
-        }
-
-        const sessionFile = join(stateDir, `skills-used-${session_id}.json`);
-        let sessionState: SessionState = { skills_used: [], files_verified: [] };
-        if (existsSync(sessionFile)) {
-            sessionState = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-            debug('Session state loaded', sessionState);
-        }
+        const sessionState = loadSessionState(session_id);
+        debug('Session state loaded', sessionState);
 
         // ============================================================
         // MANDATORY SKILL ENFORCEMENT (two-try blocking model)
@@ -319,9 +293,10 @@ After activating these skills, retry your edit.
 `);
 
                 // Two-try model: clear pending so next attempt passes
-                sessionState.skills_used = [...sessionState.skills_used, ...mandatoryPending];
-                sessionState.mandatory_pending = [];
-                saveSessionState(sessionFile, sessionState);
+                updateSessionState(session_id, state => {
+                    state.skills_used = [...new Set([...state.skills_used, ...mandatoryPending])];
+                    state.mandatory_pending = state.mandatory_pending.filter(s => !mandatoryPending.includes(s));
+                });
 
                 logInvocation(projectDir, {
                     action: 'blocked',
@@ -330,6 +305,7 @@ After activating these skills, retry your edit.
                     file: normalizedPath,
                     tool: tool_name,
                 });
+                recordMetric({ event: 'blocked', session: session_id, skills: mandatoryPending, kind: 'mandatory', file: normalizedPath });
 
                 process.exit(2);
             } else {
@@ -341,40 +317,48 @@ After activating these skills, retry your edit.
         // AI-POWERED SKILL SUGGESTION
         // ============================================================
         if (process.env.SKIP_PRETOOLUSE_AI !== 'true') {
-            const provider = await createProvider();
+            const editContent = getEditContent(tool_name, tool_input);
+            const filesAnalyzed = sessionState.files_analyzed_by_ai || [];
 
-            if (provider) {
-                const editContent = getEditContent(tool_name, tool_input);
+            // Cheap gates first: only pay for provider initialization when
+            // this edit will actually be analyzed
+            if (!isHighSignalEdit(editContent, normalizedPath)) {
+                debug('Low signal edit, skipping AI analysis');
+            } else if (filesAnalyzed.includes(normalizedPath)) {
+                debug('File already analyzed by AI in this session, skipping');
+            } else {
+                debug('High signal edit detected, analyzing with AI');
+                const provider = await createProvider();
 
-                if (isHighSignalEdit(editContent, normalizedPath)) {
-                    debug('High signal edit detected, analyzing with AI');
+                if (provider) {
+                    const aiSuggestions = await analyzeEditWithAI(provider, normalizedPath, editContent, rules);
 
-                    const filesAnalyzed = sessionState.files_analyzed_by_ai || [];
-                    if (!filesAnalyzed.includes(normalizedPath)) {
-                        const aiSuggestions = await analyzeEditWithAI(provider, normalizedPath, editContent, rules);
+                    if (aiSuggestions.length > 0) {
+                        const alreadySuggested = new Set([
+                            ...sessionState.skills_used,
+                            ...(sessionState.ai_suggested_skills || []),
+                        ]);
 
-                        if (aiSuggestions.length > 0) {
-                            const alreadySuggested = new Set([
-                                ...sessionState.skills_used,
-                                ...(sessionState.ai_suggested_skills || []),
-                            ]);
+                        const newSuggestions = aiSuggestions.filter(s => !alreadySuggested.has(s));
 
-                            const newSuggestions = aiSuggestions.filter(s => !alreadySuggested.has(s));
+                        if (newSuggestions.length > 0) {
+                            const SOFT_BLOCK = process.env.PRETOOLUSE_SOFT_BLOCK === 'true';
+                            const skillList = newSuggestions.map(s => `  → ${s}`).join('\n');
 
-                            if (newSuggestions.length > 0) {
-                                const SOFT_BLOCK = process.env.PRETOOLUSE_SOFT_BLOCK === 'true';
-                                const skillList = newSuggestions.map(s => `  → ${s}`).join('\n');
-
+                            updateSessionState(session_id, state => {
                                 if (SOFT_BLOCK) {
-                                    sessionState.pretooluse_pending = newSuggestions;
-                                    sessionState.ai_suggested_skills = [
-                                        ...(sessionState.ai_suggested_skills || []),
-                                        ...newSuggestions,
-                                    ];
-                                    sessionState.files_analyzed_by_ai = [...filesAnalyzed, normalizedPath];
-                                    saveSessionState(sessionFile, sessionState);
+                                    state.pretooluse_pending = newSuggestions;
+                                }
+                                state.ai_suggested_skills = [
+                                    ...new Set([...state.ai_suggested_skills, ...newSuggestions]),
+                                ];
+                                state.files_analyzed_by_ai = [
+                                    ...new Set([...state.files_analyzed_by_ai, normalizedPath]),
+                                ];
+                            });
 
-                                    console.error(`
+                            if (SOFT_BLOCK) {
+                                console.error(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⛔ SOFT BLOCK - Skills Recommended
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -386,17 +370,18 @@ Use Skill tool to activate, then retry your edit.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-                                    logInvocation(projectDir, {
-                                        action: 'soft_blocked',
-                                        reason: 'pretooluse_ai_suggestion',
-                                        suggestedSkills: newSuggestions,
-                                        file: normalizedPath,
-                                        tool: tool_name,
-                                    });
+                                logInvocation(projectDir, {
+                                    action: 'soft_blocked',
+                                    reason: 'pretooluse_ai_suggestion',
+                                    suggestedSkills: newSuggestions,
+                                    file: normalizedPath,
+                                    tool: tool_name,
+                                });
+                                recordMetric({ event: 'blocked', session: session_id, skills: newSuggestions, kind: 'ai-soft', file: normalizedPath });
 
-                                    process.exit(2);
-                                } else {
-                                    console.error(`
+                                process.exit(2);
+                            } else {
+                                console.error(`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💡 SKILL SUGGESTION (based on code analysis)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -408,28 +393,16 @@ Use Skill tool to activate if helpful.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 
-                                    sessionState.ai_suggested_skills = [
-                                        ...(sessionState.ai_suggested_skills || []),
-                                        ...newSuggestions,
-                                    ];
-                                    sessionState.files_analyzed_by_ai = [...filesAnalyzed, normalizedPath];
-                                    saveSessionState(sessionFile, sessionState);
-
-                                    logInvocation(projectDir, {
-                                        action: 'suggested',
-                                        reason: 'pretooluse_ai_suggestion',
-                                        suggestedSkills: newSuggestions,
-                                        file: normalizedPath,
-                                        tool: tool_name,
-                                    });
-                                }
+                                logInvocation(projectDir, {
+                                    action: 'suggested',
+                                    reason: 'pretooluse_ai_suggestion',
+                                    suggestedSkills: newSuggestions,
+                                    file: normalizedPath,
+                                    tool: tool_name,
+                                });
                             }
                         }
-                    } else {
-                        debug('File already analyzed by AI in this session, skipping');
                     }
-                } else {
-                    debug('Low signal edit, skipping AI analysis');
                 }
             }
         }
@@ -459,11 +432,9 @@ Use Skill tool to activate if helpful.
 
             // Check path patterns
             let pathMatch = false;
-            let matchedPattern = '';
             for (const pattern of fileTriggers.pathPatterns) {
                 if (globMatch(normalizedPath, pattern) || globMatch(filePath, pattern)) {
                     pathMatch = true;
-                    matchedPattern = pattern;
                     break;
                 }
             }
@@ -511,30 +482,45 @@ Use Skill tool to activate if helpful.
                 }
             }
 
-            // Block decision
-            const isAlwaysBlockPath = matchedPattern.includes('schema.prisma') ||
-                                     matchedPattern.includes('migrations');
-            const shouldBlock = pathMatch && (isAlwaysBlockPath || contentMatch || !fileTriggers.contentPatterns);
+            // Trigger decision
+            const shouldTrigger = pathMatch && (contentMatch || !fileTriggers.contentPatterns);
 
-            if (shouldBlock) {
-                const message = config.blockMessage?.replace('{file_path}', normalizedPath) ||
-                    `⚠️ BLOCKED - ${skillName} required`;
-
+            if (shouldTrigger) {
+                // Mark as handled so the sessionSkillUsed skip applies on the next edit
                 if (!sessionState.skills_used.includes(skillName)) {
                     sessionState.skills_used.push(skillName);
-                    writeFileSync(sessionFile, JSON.stringify(sessionState, null, 2));
+                    updateSessionState(session_id, state => {
+                        state.skills_used = [...new Set([...state.skills_used, skillName])];
+                    });
                 }
 
+                if (config.enforcement === 'block') {
+                    const message = config.blockMessage?.replace('{file_path}', normalizedPath) ||
+                        `⚠️ BLOCKED - ${skillName} required`;
+
+                    logInvocation(projectDir, {
+                        action: 'blocked',
+                        skillName,
+                        file: normalizedPath,
+                        tool: tool_name,
+                        reason: contentMatch ? 'path+content' : 'path-only',
+                    });
+                    recordMetric({ event: 'blocked', session: session_id, skills: [skillName], kind: 'guardrail', file: normalizedPath });
+
+                    console.error(message);
+                    process.exit(2);
+                }
+
+                // enforcement: suggest/warn guardrails advise without blocking
                 logInvocation(projectDir, {
-                    action: 'blocked',
+                    action: 'advised',
                     skillName,
                     file: normalizedPath,
                     tool: tool_name,
                     reason: contentMatch ? 'path+content' : 'path-only',
                 });
 
-                console.error(message);
-                process.exit(2);
+                console.error(`💡 Consider activating skill "${skillName}" for this file (${normalizedPath})`);
             }
         }
 

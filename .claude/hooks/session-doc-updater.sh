@@ -1,36 +1,18 @@
 #!/bin/bash
-set -e
+# Stop hook - session doc indexing + stale session-state pruning
 
-# Read stdin FIRST before sourcing bashrc (bashrc can consume stdin)
-INPUT=$(cat)
+# Prune per-session state files and tsc caches older than 7 days.
+# This is the only wired hook that fires at a natural cleanup point.
+if [ -n "$CLAUDE_PROJECT_DIR" ]; then
+    find "$CLAUDE_PROJECT_DIR/.claude/hooks/state" -maxdepth 1 -type f -mtime +7 -delete 2>/dev/null || true
+    find "$CLAUDE_PROJECT_DIR/.claude/tsc-cache" -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+fi
 
-# Skip if disabled
+# Skip doc indexing if disabled (also enforced in session-doc-updater.ts,
+# which covers the case where the flag comes from .env)
 if [ "$SESSION_DOCS_ENABLED" = "false" ]; then
+    cat >/dev/null
     exit 0
 fi
 
-# Skip silently if not running under Claude Code
-if [ -z "$CLAUDE_PROJECT_DIR" ]; then
-    exit 0
-fi
-
-# Source bashrc to ensure GEMINI_API_KEY is available
-if [ -f ~/.bashrc ]; then
-    source ~/.bashrc </dev/null 2>/dev/null || true
-fi
-
-# Source .env for API keys (reliable path for macOS/zsh users)
-if [ -f "$CLAUDE_PROJECT_DIR/.claude/hooks/.env" ]; then
-    set -a
-    source "$CLAUDE_PROJECT_DIR/.claude/hooks/.env" 2>/dev/null || true
-    set +a
-fi
-
-# Fail safe if dependencies are missing
-if ! command -v npx >/dev/null 2>&1 || [ ! -d "$CLAUDE_PROJECT_DIR/.claude/hooks/node_modules" ]; then
-    echo "claude hooks: dependencies not installed - run: cd .claude/hooks && npm install" >&2
-    exit 0
-fi
-
-cd "$CLAUDE_PROJECT_DIR/.claude/hooks"
-echo "$INPUT" | npx tsx session-doc-updater.ts
+exec "$(dirname "$0")/_run-node-hook.sh" session-doc-updater.ts

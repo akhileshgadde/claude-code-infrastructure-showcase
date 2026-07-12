@@ -23,9 +23,9 @@
                     "skill-rules.json"
                 ],
                 "intentPatterns": [
-                    "(how do|how does|explain).*?skill",
-                    "(create|add|modify|build).*?skill",
-                    "skill.*?(work|trigger|activate|system)"
+                    "\\b(how do|how does|explain)\\b.*?\\bskills?\\b",
+                    "\\b(create|add|modify|build)(s|d|ed|ing)?\\b.*?\\bskills?\\b",
+                    "\\bskills?\\b.*?\\b(work|trigger|activate|system)(s|ing|ed)?\\b"
                 ]
             }
         },
@@ -40,12 +40,10 @@
                     "backend development",
                     "microservice",
                     "controller",
-                    "service",
                     "repository",
-                    "route",
                     "routing",
                     "express",
-                    "API",
+                    "API endpoint",
                     "endpoint",
                     "middleware",
                     "validation",
@@ -54,15 +52,14 @@
                     "database access",
                     "BaseController",
                     "dependency injection",
-                    "unifiedConfig",
-                    "configuration"
+                    "unifiedConfig"
                 ],
                 "intentPatterns": [
-                    "(create|add|implement|build).*?(route|endpoint|API|controller|service|repository)",
-                    "(fix|handle|debug).*?(error|exception|backend)",
-                    "(add|implement).*?(middleware|validation|error.*?handling)",
-                    "(organize|structure|refactor).*?(backend|service|API)",
-                    "(how to|best practice).*?(backend|route|controller|service)"
+                    "\\b(create|add|implement|build)(s|d|ed|ing)?\\b.*?\\b(route|endpoint|API|controller|service|repository)s?\\b",
+                    "\\b(fix|handle|debug)(s|es|d|ed|ing)?\\b.*?\\b(error|exception|backend)s?\\b",
+                    "\\b(add|implement)(s|ed|ing)?\\b.*?\\b(middleware|validation|error.?handling)\\b",
+                    "\\b(organize|structure|refactor)(s|d|ed|ing)?\\b.*?\\b(backend|service|API)s?\\b",
+                    "\\b(how to|best practice)s?\\b.*?\\b(backend|route|controller|service)s?\\b"
                 ]
             },
             "fileTriggers": {
@@ -98,22 +95,23 @@
                     "component",
                     "react component",
                     "UI",
-                    "interface",
-                    "page",
                     "modal",
                     "dialog",
-                    "form",
+                    "form component",
                     "MUI",
                     "Material-UI",
                     "Grid",
                     "styling",
                     "frontend",
-                    "React"
+                    "React",
+                    "useSuspenseQuery",
+                    "useQuery",
+                    "TanStack"
                 ],
                 "intentPatterns": [
-                    "(create|add|make|build|update|modify|edit).*?(component|UI|page|modal|dialog|form)",
-                    "(how to|best practice).*?(component|react|MUI)",
-                    "(style|design|layout).*?(component|UI)"
+                    "\\b(create|add|make|build|update|modify|edit)(s|d|ed|ing)?\\b.*?\\b(component|UI|page|modal|dialog|form|widget|dashboard)s?\\b",
+                    "\\b(how to|best practice)s?\\b.*?\\b(component|react|MUI)s?\\b",
+                    "\\b(style|design|layout)(s|d|ed|ing)?\\b.*?\\b(component|UI)s?\\b"
                 ]
             },
             "fileTriggers": {
@@ -168,9 +166,9 @@
                     "performance tracking"
                 ],
                 "intentPatterns": [
-                    "(add|create|implement|setup).*?(error handling|sentry|error tracking)",
-                    "(fix|handle|catch).*?(error|exception)",
-                    "(how to|best practice).*?(error|sentry|monitoring)"
+                    "\\b(add|create|implement|setup|set up)(s|d|ed|ing|ting)?\\b.*?\\b(error handling|sentry|error tracking)\\b",
+                    "\\b(fix|handle|catch)(es|ed|ing)?\\b.*?\\b(error|exception)s?\\b",
+                    "\\b(how to|best practice)s?\\b.*?\\b(error|sentry|monitoring)s?\\b"
                 ]
             },
             "fileTriggers": {

@@ -207,6 +207,15 @@ else
     fail "end-to-end check skipped - dependencies or the activation hook are missing (see failures above)" "fix the failures above, then re-run"
 fi
 
+# ---- 9. Cross-agent skills mirror (.agents/skills, read by Codex etc.) ----
+if [ -d "$PROJECT_ROOT/.agents/skills" ]; then
+    if bash "$PROJECT_ROOT/.claude/scripts/sync-agent-skills.sh" --check >/dev/null 2>&1; then
+        pass "cross-agent mirror: .agents/skills matches .claude/skills"
+    else
+        warn ".agents/skills has drifted from .claude/skills - Codex and other Agent-Skills tools see stale skill content" "run .claude/scripts/sync-agent-skills.sh"
+    fi
+fi
+
 # ---- Summary ----
 echo ""
 TOTAL=$((PASS_COUNT + WARN_COUNT + FAIL_COUNT))

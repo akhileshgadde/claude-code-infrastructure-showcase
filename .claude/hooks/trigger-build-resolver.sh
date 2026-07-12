@@ -58,8 +58,8 @@ echo "Services with changes: ${services_with_changes[@]}" >> "$DEBUG_LOG"
 
 if [[ ${#services_with_changes[@]} -gt 0 ]]; then
     services_list=$(IFS=', '; echo "${services_with_changes[*]}")
-    echo "Changes detected in: $services_list — triggering build-error-resolver..." >> "$DEBUG_LOG"
-    echo "Changes detected in: $services_list — triggering build-error-resolver..." >&2
+    echo "Changes detected in: $services_list — triggering auto-error-resolver..." >> "$DEBUG_LOG"
+    echo "Changes detected in: $services_list — triggering auto-error-resolver..." >&2
 
     # Use the correct Claude CLI syntax - try different options
     echo "Attempting to run claude with sub-agent..." >> "$DEBUG_LOG"
@@ -67,7 +67,7 @@ if [[ ${#services_with_changes[@]} -gt 0 ]]; then
     # Try different possible syntaxes for sub-agents
     if command -v claude >/dev/null 2>&1; then
         # Option 1: Try direct agent invocation
-        claude --agent build-error-resolver <<EOF 2>> "$DEBUG_LOG"
+        claude --agent auto-error-resolver <<EOF 2>> "$DEBUG_LOG"
 Build and fix errors in these specific services only: ${services_list}
 
 Focus on these services in the monorepo structure. Each service has its own build process.
@@ -76,7 +76,7 @@ EOF
         # If that fails, try alternative syntax
         if [ $? -ne 0 ]; then
             echo "First attempt failed, trying alternative syntax..." >> "$DEBUG_LOG"
-            claude chat "Use the build-error-resolver agent to build and fix errors in: ${services_list}" 2>> "$DEBUG_LOG"
+            claude chat "Use the auto-error-resolver agent to build and fix errors in: ${services_list}" 2>> "$DEBUG_LOG"
         fi
     else
         echo "Claude CLI not found in PATH" >> "$DEBUG_LOG"
@@ -84,8 +84,8 @@ EOF
     
     echo "Claude command completed with exit code: $?" >> "$DEBUG_LOG"
 else
-    echo "No services with changes detected — skipping build-error-resolver." >> "$DEBUG_LOG"
-    echo "No services with changes detected — skipping build-error-resolver." >&2
+    echo "No services with changes detected — skipping auto-error-resolver." >> "$DEBUG_LOG"
+    echo "No services with changes detected — skipping auto-error-resolver." >&2
 fi
 
 echo "=== END DEBUG SECTION ===" >> "$DEBUG_LOG"

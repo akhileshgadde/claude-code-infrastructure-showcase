@@ -46,8 +46,10 @@ The factory tries providers in this order:
 2. **GEMINI_API_KEY** present -> Gemini
 3. **OPENAI_API_KEY** present -> OpenAI
 4. **ANTHROPIC_API_KEY** present -> Anthropic
-5. **Ollama ping** (500ms timeout) -> Ollama
+5. **OLLAMA_BASE_URL** present -> Ollama (ping, 500ms timeout)
 6. **No provider** -> regex-only fallback (zero cost, works offline)
+
+Ollama is opt-in: set `SKILL_AI_PROVIDER=ollama` or `OLLAMA_BASE_URL`. The factory does not probe for a local Ollama unprompted, because the detection ping would cost every hook call up to 500ms whenever no provider is configured.
 
 ## Adding a Custom Provider
 

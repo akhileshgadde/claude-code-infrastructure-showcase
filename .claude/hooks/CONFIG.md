@@ -16,18 +16,8 @@ Create or update `.claude/settings.json` in your project root:
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-prompt.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use-tracker.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-prompt.sh",
+            "timeout": 15
           }
         ]
       }
@@ -38,18 +28,41 @@ Create or update `.claude/settings.json` in your project root:
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-verification-guard.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-verification-guard.sh",
+            "timeout": 15
           }
         ]
       }
     ],
     "PostToolUse": [
       {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use-tracker.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Skill",
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-tracker.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-tracker.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-doc-updater.sh",
+            "timeout": 30
           }
         ]
       }
@@ -57,6 +70,8 @@ Create or update `.claude/settings.json` in your project root:
   }
 }
 ```
+
+Note: JSON keys must be unique — both PostToolUse hooks (the edit tracker and the skill tracker) live as two matcher objects inside the **single** `PostToolUse` array. Declaring `PostToolUse` twice would silently drop the first registration.
 
 ### 2. Install Dependencies
 
@@ -180,6 +195,10 @@ Set in `.claude/skills/skill-rules.json`:
 | `disabled` | Regex-only (default, v1.0 behavior) |
 | `fallback` | AI first, regex on failure |
 | `ai-only` | Pure AI, no fallback |
+
+### AI Is Suggest-Only by Default
+
+In AI mode, classifications never arm hard blocks unless you opt in with `"ai_can_arm_blocks": true` in `settings`. Reason: on the 2026-07 held-out benchmark of real prompts, Gemini classification had perfect recall but false-alarmed on roughly a third of off-topic prompts — good enough to suggest, not good enough to block edits. Regex intent patterns (deterministic, auditable) remain the only default path to a mandatory block.
 
 ### Provider Selection
 
@@ -359,7 +378,29 @@ rm -rf $CLAUDE_PROJECT_DIR/.claude/tsc-cache/[session-id]
 
 ### Automatic Cleanup
 
-The build-check hook automatically cleans up session cache on successful builds.
+The wired Stop hook (`session-doc-updater.sh`) prunes session-state files and tsc-cache directories older than 7 days on every stop. If you additionally wire `stop-build-check-enhanced.sh`, it removes the current session's cache immediately after a successful build.
+
+## Using the Hooks from Codex CLI
+
+Codex's hooks system is wire-compatible with these scripts. `.codex/hooks.json` registers them via `.codex/hooks/_codex-adapter.sh`, which sets `CLAUDE_PROJECT_DIR` and translates `apply_patch` events into per-file guard checks — no forked code. See the README's "Works with Codex Too" section for setup (native install + one-time hook trust prompt).
+
+## Activation Telemetry
+
+The skill hooks append one JSONL line per suggestion, activation, and block to:
+
+```
+$CLAUDE_PROJECT_DIR/.claude/hooks/state/metrics.jsonl
+```
+
+Events: `suggested` (skill, level mandatory/recommended, source regex/gemini/...), `activated` (Skill tool used), `blocked` (kind mandatory/guardrail/ai-soft, file). The file rotates once at 10 MB (`metrics.jsonl.1`); sessions whose id starts with `bench-` are excluded so benchmark runs don't pollute real-usage data.
+
+View the report:
+
+```bash
+.claude/scripts/skill-stats.sh
+```
+
+It shows, per skill: how many sessions it was suggested in, how often a suggestion was followed by an activation in the same session (conversion), how often it was activated with no suggestion at all (the model found it on its own), and block counts by kind. Over time this tells you which triggers earn their keep in *your* real usage — the same data the repo's benchmark had to reconstruct by hand.
 
 ## Troubleshooting Configuration
 
